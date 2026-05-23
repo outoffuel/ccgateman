@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GateMan - 入退室打刻システム</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --bg-gradient: radial-gradient(circle at 50% 50%, #16223f 0%, #0b0f19 100%);
+            --primary-enter: #10b981;
+            --primary-enter-glow: rgba(16, 185, 129, 0.4);
+            --primary-exit: #f43f5e;
+            --primary-exit-glow: rgba(244, 63, 94, 0.4);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --glass-bg: rgba(17, 24, 39, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glow-color: var(--primary-enter-glow);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', 'Inter', 'Segoe UI', Meiryo, sans-serif;
+            background: var(--bg-color);
+            background-image: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            overflow: hidden;
+            padding: 2rem;
+            user-select: none;
+        }
+
+        header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1000px;
+            margin-bottom: 1rem;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #3b82f6, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+
+        .logo::before {
+            content: '';
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+
+        .system-time {
+            text-align: right;
+        }
+
+        .time-display {
+            font-size: 2.2rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            color: #ffffff;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+        }
+
+        .date-display {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-top: -2px;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 1000px;
+            gap: 2rem;
+        }
+
+        /* Mode Selector Container */
+        .mode-container {
+            display: flex;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 0.4rem;
+            border-radius: 100px;
+            width: 380px;
+            position: relative;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 1.2rem 2rem;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 1.3rem;
+            font-weight: 800;
+            border-radius: 100px;
+            cursor: pointer;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: color 0.3s ease, transform 0.1s ease;
+        }
+
+        .mode-btn:active {
+            transform: scale(0.97);
+        }
+
+        .mode-slider {
+            position: absolute;
+            top: 0.4rem;
+            bottom: 0.4rem;
+            left: 0.4rem;
+            width: calc(50% - 0.4rem);
+            border-radius: 100px;
+            z-index: 1;
+            transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        /* Mode Styles */
+        body.mode-enter-active {
+            --glow-color: var(--primary-enter-glow);
+        }
+        body.mode-exit-active {
+            --glow-color: var(--primary-exit-glow);
+        }
+
+        .mode-enter-active .mode-slider {
+            background: linear-gradient(135deg, #059669, #10b981);
+            transform: translateX(0);
+            box-shadow: 0 0 20px var(--primary-enter-glow);
+        }
+
+        .mode-exit-active .mode-slider {
+            background: linear-gradient(135deg, #e11d48, #f43f5e);
+            transform: translateX(100%);
+            box-shadow: 0 0 20px var(--primary-exit-glow);
+        }
+
+        .mode-enter-active .btn-enter {
+            color: #ffffff;
+        }
+
+        .mode-exit-active .btn-exit {
+            color: #ffffff;
+        }
+
+        /* Card Scanner Panel */
+        .scanner-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 3rem;
+            width: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            position: relative;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .scanner-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 26px;
+            background: linear-gradient(135deg, var(--glow-color), transparent 60%);
+            z-index: -1;
+            pointer-events: none;
+            transition: background 0.3s ease;
+        }
+
+        .scan-target {
+            width: 140px;
+            height: 180px;
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.02);
+            transition: border-color 0.3s ease;
+        }
+
+        .scan-target::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: var(--glow-color);
+            box-shadow: 0 0 10px 2px var(--glow-color);
+            left: 0;
+            top: 0;
+            animation: scan-animation 2.5s infinite ease-in-out;
+            transition: background 0.3s ease;
+        }
+
+        .scan-icon {
+            width: 64px;
+            height: 64px;
+            opacity: 0.25;
+            fill: #ffffff;
+            transition: opacity 0.3s ease, fill 0.3s ease;
+        }
+
+        .mode-enter-active .scan-icon {
+            fill: var(--primary-enter);
+            opacity: 0.6;
+        }
+
+        .mode-exit-active .scan-icon {
+            fill: var(--primary-exit);
+            opacity: 0.6;
+        }
+
+        .scanner-message {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            text-align: center;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .scanner-hint {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.25);
+            margin-top: -0.5rem;
+        }
+
+        /* Focus Status Indicator */
+        .focus-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            padding: 0.4rem 0.8rem;
+            border-radius: 100px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .focus-indicator.unfocused {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.2);
+            animation: pulse-border 1.5s infinite;
+        }
+
+        .focus-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            display: inline-block;
+        }
+
+        /* Hidden Input Box */
+        #card-input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 1px;
+            height: 1px;
+        }
+
+        /* Overlay modal for scan results */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(3, 7, 18, 0.85);
+            backdrop-filter: blur(15px);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .result-card {
+            background: rgba(17, 24, 39, 0.9);
+            border: 2px solid var(--result-color, var(--primary-enter));
+            box-shadow: 0 0 40px var(--result-glow, var(--primary-enter-glow));
+            width: 90%;
+            max-width: 500px;
+            border-radius: 28px;
+            padding: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            transform: scale(0.9);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-align: center;
+        }
+
+        .overlay.active .result-card {
+            transform: scale(1);
+        }
+
+        .result-icon-container {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--result-bg, rgba(16, 185, 129, 0.1));
+            color: var(--result-color, var(--primary-enter));
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .result-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 0.2rem;
+            color: #ffffff;
+        }
+
+        .result-details {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1.2rem;
+            margin-top: 0.5rem;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+        }
+
+        .result-label {
+            color: var(--text-muted);
+        }
+
+        .result-value {
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .result-message {
+            font-size: 1.3rem;
+            font-weight: 600;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            color: #ffffff;
+            margin: 0.5rem 0;
+        }
+
+        /* Debug / Manual Trigger */
+        .bottom-actions {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+        }
+
+        .admin-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .admin-link:hover {
+            color: #3b82f6;
+        }
+
+        .manual-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            opacity: 0.5;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .manual-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        /* Manual Input Modal */
+        .manual-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(3, 7, 18, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .manual-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .manual-card {
+            background: #111827;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            width: 360px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+        }
+
+        .manual-card h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .manual-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 0.8rem 1rem;
+            color: #ffffff;
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+            text-align: center;
+        }
+
+        .manual-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+        }
+
+        .manual-submit {
+            background: #3b82f6;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .manual-submit:hover {
+            background: #2563eb;
+        }
+
+        .manual-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-top: -0.5rem;
+            align-self: flex-end;
+        }
+
+        /* Animations */
+        @keyframes scan-animation {
+            0% {
+                top: 0;
+            }
+            50% {
+                top: 100%;
+            }
+            100% {
+                top: 0;
+            }
+        }
+
+        @keyframes pulse-border {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        /* Responsiveness for Raspberry Pi Screen (typically 800x480 or similar) */
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+            main {
+                gap: 1rem;
+            }
+            .mode-container {
+                width: 100%;
+                max-width: 320px;
+            }
+            .scanner-card {
+                width: 100%;
+                max-width: 360px;
+                padding: 2rem 1.5rem;
+            }
+            .scan-target {
+                width: 100px;
+                height: 130px;
+            }
+            .scan-icon {
+                width: 48px;
+                height: 48px;
+            }
+            .logo {
+                font-size: 1.5rem;
+            }
+            .time-display {
+                font-size: 1.6rem;
+            }
+        }
+    </style>
+</head>
+<body class="mode-enter-active">
+
+    <header>
+        <div class="logo" id="logo-refresh" onclick="location.reload()">GateMan</div>
+        <div class="system-time">
+            <div class="time-display" id="clock-time">00:00:00</div>
+            <div class="date-display" id="clock-date">2026年05月22日 金曜日</div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Mode Switcher -->
+        <div class="mode-container">
+            <div class="mode-slider"></div>
+            <button class="mode-btn btn-enter" onclick="setMode('enter')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                入室
+            </button>
+            <button class="mode-btn btn-exit" onclick="setMode('exit')">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                退室
+            </button>
+        </div>
+
+        <!-- Scanner Interaction -->
+        <div class="scanner-card" id="scanner-wrapper">
+            <div class="scan-target">
+                <!-- Smartcard Icon -->
+                <svg class="scan-icon" viewBox="0 0 24 24">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 4h16V6H4v2zm0 10h16V10H4v8zm2-6h3v4H6v-4z"/>
+                </svg>
+            </div>
+            
+            <div class="scanner-message" id="prompt-message">
+                カードをタッチしてください（入室）
+            </div>
+            <div class="scanner-hint">
+                リーダーにかざすと自動で入力されます
+            </div>
+
+            <!-- Focus Status Indicator -->
+            <div class="focus-indicator" id="focus-status">
+                <span class="focus-dot"></span>
+                <span id="focus-text">自動入力有効</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- Invisible Card Scan input for Keyboard emulation -->
+    <form id="scan-form">
+        <input type="text" id="card-input" autofocus autocomplete="off">
+    </form>
+
+    <div class="bottom-actions">
+        <a href="/admin" class="admin-link" target="_blank">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            管理画面を開く
+        </a>
+        <button class="manual-btn" onclick="openManualModal()" title="手動入力">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="18" y1="12" x2="18.01" y2="12"/><rect x="10" y="12" width="4" height="1"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/><line x1="14" y1="16" x2="14.01" y2="16"/><line x1="18" y1="16" x2="18.01" y2="16"/></svg>
+        </button>
+    </div>
+
+    <!-- API Response Overlay -->
+    <div class="overlay" id="result-overlay">
+        <div class="result-card" id="res-card">
+            <div class="result-icon-container" id="res-icon-bg">
+                <span id="res-icon">✓</span>
+            </div>
+            <div class="result-title" id="res-status">打刻完了</div>
+            <div class="result-message" id="res-msg">山田 太郎さん、こんにちは！</div>
+            <div class="result-details" id="res-details-box">
+                <div class="result-row">
+                    <span class="result-label">学籍番号:</span>
+                    <span class="result-value" id="res-sid">-</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">所属/属性:</span>
+                    <span class="result-value" id="res-attr">-</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">打刻時刻:</span>
+                    <span class="result-value" id="res-time">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Code Input Modal -->
+    <div class="manual-modal" id="manual-modal">
+        <div class="manual-card">
+            <button class="manual-close" onclick="closeManualModal()">閉じる</button>
+            <h3>手動カードID入力</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">磁気カードのID番号を直接入力して打刻します。</p>
+            <input type="text" class="manual-input" id="manual-card-id" placeholder="磁気IDを入力" maxlength="20">
+            <button class="manual-submit" onclick="submitManualScan()">打刻する</button>
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let currentMode = 'enter'; // 'enter' or 'exit'
+        let audioCtx = null;
+        let isOverlayActive = false;
+
+        // Initialize Audio context on first user click or action
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        // Web Audio Synthesizer: Play Beep Sound for success
+        function playSuccessBeep() {
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                // Two tone beep: 660Hz then 880Hz
+                osc.frequency.setValueAtTime(660, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08);
+                
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.25);
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
+        }
+
+        // Web Audio Synthesizer: Play Buzz Sound for failures
+        function playErrorBuzz() {
+            try {
+                initAudio();
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sawtooth';
+                // Low pitched buzz
+                osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 0.35);
+                
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
+        }
+
+        // Digital Clock Logic
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('clock-time').textContent = `${hours}:${minutes}:${seconds}`;
+
+            const years = now.getFullYear();
+            const months = now.getMonth() + 1;
+            const days = now.getDate();
+            const dayNames = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+            const dayName = dayNames[now.getDay()];
+            document.getElementById('clock-date').textContent = `${years}年${months}月${days}日 ${dayName}`;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Mode Switching
+        function setMode(mode) {
+            initAudio();
+            currentMode = mode;
+            if (mode === 'enter') {
+                document.body.className = 'mode-enter-active';
+                document.getElementById('prompt-message').textContent = 'カードをタッチしてください（入室）';
+            } else {
+                document.body.className = 'mode-exit-active';
+                document.getElementById('prompt-message').textContent = 'カードをタッチしてください（退室）';
+            }
+            focusInput();
+        }
+
+        // Keep input field focused at all times
+        const cardInput = document.getElementById('card-input');
+        const focusStatus = document.getElementById('focus-status');
+        const focusText = document.getElementById('focus-text');
+
+        function focusInput() {
+            if (!isOverlayActive && document.getElementById('manual-modal').className.indexOf('active') === -1) {
+                cardInput.focus();
+            }
+        }
+
+        cardInput.addEventListener('blur', () => {
+            focusStatus.className = 'focus-indicator unfocused';
+            focusText.textContent = 'タップして自動入力を再開';
+            setTimeout(focusInput, 150); // Small delay to prevent layout thrashing
+        });
+
+        cardInput.addEventListener('focus', () => {
+            focusStatus.className = 'focus-indicator';
+            focusText.textContent = '自動入力有効';
+        });
+
+        // Ensure clicking anywhere on the screen refocuses the input field
+        document.addEventListener('click', (e) => {
+            // Do not steal focus if interacting with buttons, modals or links
+            if (e.target.tagName !== 'BUTTON' && 
+                e.target.tagName !== 'A' && 
+                e.target.tagName !== 'INPUT' && 
+                !e.target.closest('.manual-card') &&
+                !e.target.closest('.result-card')) {
+                focusInput();
+            }
+        });
+
+        // Handle Scan Submissions
+        const scanForm = document.getElementById('scan-form');
+        scanForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const cardID = cardInput.value.trim();
+            if (cardID) {
+                processScan(cardID);
+            }
+            cardInput.value = '';
+        });
+
+        // Process Scan API Request
+        function processScan(cardID) {
+            initAudio();
+            if (isOverlayActive) return; // Prevent double scanning while result is displayed
+
+            isOverlayActive = true;
+            
+            // Build Form Data
+            const formData = new FormData();
+            formData.append('card_id', cardID);
+            formData.append('mode', currentMode);
+
+            // Fetch to Backend
+            fetch('/api/scan', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                showResult(data);
+            })
+            .catch(error => {
+                console.error('Error scanning:', error);
+                showResult({
+                    success: false,
+                    message: "サーバー通信エラーが発生しました。"
+                });
+            });
+        }
+
+        // Show Scan Result Modal
+        function showResult(data) {
+            const overlay = document.getElementById('result-overlay');
+            const card = document.getElementById('res-card');
+            const iconBg = document.getElementById('res-icon-bg');
+            const icon = document.getElementById('res-icon');
+            const status = document.getElementById('res-status');
+            const msg = document.getElementById('res-msg');
+            const sid = document.getElementById('res-sid');
+            const attr = document.getElementById('res-attr');
+            const time = document.getElementById('res-time');
+            const detailsBox = document.getElementById('res-details-box');
+
+            if (data.success) {
+                playSuccessBeep();
+                status.textContent = currentMode === 'enter' ? '入室完了' : '退室完了';
+                card.style.setProperty('--result-color', currentMode === 'enter' ? 'var(--primary-enter)' : 'var(--primary-enter)');
+                card.style.setProperty('--result-glow', currentMode === 'enter' ? 'var(--primary-enter-glow)' : 'var(--primary-enter-glow)');
+                iconBg.style.background = 'rgba(16, 185, 129, 0.15)';
+                iconBg.style.color = '#10b981';
+                icon.textContent = '✓';
+                
+                // Show Student Details
+                sid.textContent = data.student_id || '-';
+                attr.textContent = `${data.attribute || '-'} (${data.department || '-'})`;
+                time.textContent = data.time || '-';
+                detailsBox.style.display = 'flex';
+                
+                msg.textContent = data.message;
+            } else {
+                playErrorBuzz();
+                status.textContent = 'エラー';
+                card.style.setProperty('--result-color', 'var(--primary-exit)');
+                card.style.setProperty('--result-glow', 'var(--primary-exit-glow)');
+                iconBg.style.background = 'rgba(244, 63, 94, 0.15)';
+                iconBg.style.color = '#f43f5e';
+                icon.textContent = '✕';
+                
+                // Hide Student Details
+                detailsBox.style.display = 'none';
+                
+                msg.textContent = data.message || '利用登録が見つかりませんでした。';
+            }
+
+            overlay.classList.add('active');
+
+            // Automatically close overlay after 4 seconds
+            setTimeout(() => {
+                closeResultOverlay();
+            }, 4000);
+        }
+
+        function closeResultOverlay() {
+            const overlay = document.getElementById('result-overlay');
+            overlay.classList.remove('active');
+            isOverlayActive = false;
+            cardInput.value = '';
+            focusInput();
+        }
+
+        // Close overlay by clicking on it
+        document.getElementById('result-overlay').addEventListener('click', () => {
+            closeResultOverlay();
+        });
+
+        // Manual Input Trigger
+        function openManualModal() {
+            initAudio();
+            document.getElementById('manual-modal').classList.add('active');
+            document.getElementById('manual-card-id').focus();
+        }
+
+        function closeManualModal() {
+            document.getElementById('manual-modal').classList.remove('active');
+            document.getElementById('manual-card-id').value = '';
+            setTimeout(focusInput, 150);
+        }
+
+        function submitManualScan() {
+            const cardID = document.getElementById('manual-card-id').value.trim();
+            if (cardID) {
+                closeManualModal();
+                processScan(cardID);
+            }
+        }
+
+        // Submit manual scan on Enter key
+        document.getElementById('manual-card-id').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                submitManualScan();
+            }
+        });
+
+        // Initial Focus Setup
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(focusInput, 500);
+        });
+    </script>
+</body>
+</html>
