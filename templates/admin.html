@@ -10,17 +10,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #080c14;
-            --bg-gradient: radial-gradient(circle at 50% 0%, #1a233a 0%, #080c14 100%);
-            --primary: #3b82f6;
-            --primary-glow: rgba(59, 130, 246, 0.3);
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --glass-bg: rgba(17, 24, 39, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.08);
+            --bg-color: #fbf3db;
+            --bg-gradient: radial-gradient(circle at 50% 0%, #ece3cc 0%, #fbf3db 100%);
+            --primary: #0073e6;
+            --primary-glow: rgba(0, 115, 230, 0.2);
+            --success: #489916;
+            --warning: #c47000;
+            --danger: #d2212d;
+            --text-main: #3a4d53;
+            --text-muted: #819795;
+            --text-normal: #53676d;
+            --glass-bg: rgba(236, 227, 204, 0.8);
+            --glass-border: rgba(129, 151, 149, 0.25);
             --card-padding: 1.5rem;
         }
 
@@ -71,7 +72,7 @@
             align-items: center;
             justify-content: center;
             font-weight: 800;
-            color: #ffffff;
+            color: #fbf3db;
             font-family: 'Outfit', sans-serif;
         }
 
@@ -79,7 +80,7 @@
             font-family: 'Outfit', sans-serif;
             font-size: 1.8rem;
             font-weight: 800;
-            background: linear-gradient(135deg, #ffffff, var(--text-muted));
+            background: linear-gradient(135deg, var(--text-main), var(--text-normal));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -88,13 +89,13 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            background: rgba(16, 185, 129, 0.1);
+            background: rgba(72, 153, 22, 0.1);
             color: var(--success);
             padding: 0.4rem 1rem;
             border-radius: 100px;
             font-size: 0.85rem;
             font-weight: 600;
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(72, 153, 22, 0.2);
         }
 
         .status-dot {
@@ -120,7 +121,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 20px -5px rgba(129, 151, 149, 0.15);
             backdrop-filter: blur(8px);
         }
 
@@ -137,14 +138,14 @@
             font-size: 2.2rem;
             font-weight: 800;
             font-family: 'Outfit', sans-serif;
-            color: #ffffff;
+            color: var(--text-main);
         }
 
         .stat-icon {
             width: 48px;
             height: 48px;
             border-radius: 12px;
-            background: rgba(59, 130, 246, 0.1);
+            background: rgba(0, 115, 230, 0.1);
             color: var(--primary);
             display: flex;
             align-items: center;
@@ -152,12 +153,12 @@
         }
 
         .stat-card:nth-child(2) .stat-icon {
-            background: rgba(16, 185, 129, 0.1);
+            background: rgba(72, 153, 22, 0.1);
             color: var(--success);
         }
 
         .stat-card:nth-child(3) .stat-icon {
-            background: rgba(245, 158, 11, 0.1);
+            background: rgba(196, 112, 0, 0.1);
             color: var(--warning);
         }
 
@@ -186,7 +187,7 @@
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
             border-radius: 20px;
-            box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 15px 30px -10px rgba(129, 151, 149, 0.2);
             backdrop-filter: blur(12px);
             overflow: hidden;
         }
@@ -206,6 +207,7 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            color: var(--text-main);
         }
 
         .card-body {
@@ -227,11 +229,11 @@
 
         .form-control {
             width: 100%;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(251, 243, 219, 0.6);
+            border: 1px solid rgba(129, 151, 149, 0.3);
             border-radius: 8px;
             padding: 0.75rem 1rem;
-            color: #ffffff;
+            color: var(--text-main);
             font-family: inherit;
             font-size: 0.95rem;
             outline: none;
@@ -240,21 +242,21 @@
 
         .form-control:focus {
             border-color: var(--primary);
-            background: rgba(255, 255, 255, 0.08);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+            background: rgba(251, 243, 219, 0.9);
+            box-shadow: 0 0 0 3px rgba(0, 115, 230, 0.15);
         }
 
         select.form-control {
             appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='2 4 6 8 10 4'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23819795' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='2 4 6 8 10 4'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 1rem center;
             padding-right: 2.5rem;
         }
 
         select.form-control option {
-            background-color: #111827;
-            color: #ffffff;
+            background-color: #ece3cc;
+            color: var(--text-main);
         }
 
         /* Buttons */
@@ -279,7 +281,7 @@
         }
 
         .btn-primary:hover {
-            background: #2563eb;
+            background: #0082ff;
             box-shadow: 0 0 15px var(--primary-glow);
         }
 
@@ -288,17 +290,18 @@
         }
 
         .btn-success:hover {
-            background: #059669;
-            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+            background: #60bc00;
+            box-shadow: 0 0 15px rgba(72, 153, 22, 0.3);
         }
 
         .btn-secondary {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(83, 103, 109, 0.1);
+            border: 1px solid rgba(83, 103, 109, 0.2);
+            color: var(--text-main);
         }
 
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(83, 103, 109, 0.2);
         }
 
         .btn-group {
@@ -322,20 +325,20 @@
 
         .data-table th, .data-table td {
             padding: 0.9rem 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(129, 151, 149, 0.15);
         }
 
         .data-table th {
             font-weight: 600;
-            color: var(--text-muted);
-            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-normal);
+            background: rgba(213, 205, 182, 0.4);
             font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .data-table tbody tr:hover {
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .scrollable-box {
@@ -352,12 +355,12 @@
         }
 
         .scrollable-box::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(129, 151, 149, 0.3);
             border-radius: 3px;
         }
 
         .scrollable-box::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(129, 151, 149, 0.5);
         }
 
         /* Badges */
@@ -370,21 +373,21 @@
         }
 
         .badge-enter {
-            background: rgba(16, 185, 129, 0.15);
+            background: rgba(72, 153, 22, 0.15);
             color: var(--success);
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(72, 153, 22, 0.25);
         }
 
         .badge-exit {
-            background: rgba(244, 63, 94, 0.15);
-            color: #f43f5e;
-            border: 1px solid rgba(244, 63, 94, 0.2);
+            background: rgba(210, 33, 45, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(210, 33, 45, 0.25);
         }
 
         .badge-role {
-            background: rgba(59, 130, 246, 0.15);
+            background: rgba(0, 115, 230, 0.15);
             color: var(--primary);
-            border: 1px solid rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(0, 115, 230, 0.25);
         }
 
         /* Toast Message */
@@ -392,11 +395,11 @@
             position: fixed;
             bottom: 2rem;
             right: 2rem;
-            background: #1f2937;
+            background: #ece3cc;
             border: 1px solid var(--glass-border);
             border-radius: 12px;
             padding: 1rem 1.5rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 25px -5px rgba(129, 151, 149, 0.3);
             display: flex;
             align-items: center;
             gap: 0.8rem;
@@ -404,6 +407,7 @@
             transform: translateY(100px);
             opacity: 0;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            color: var(--text-main);
         }
 
         .toast.show {
@@ -426,7 +430,7 @@
         }
 
         .toast-success .toast-icon {
-            background: rgba(16, 185, 129, 0.2);
+            background: rgba(72, 153, 22, 0.2);
             color: var(--success);
         }
 
@@ -435,7 +439,7 @@
         }
 
         .toast-error .toast-icon {
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(210, 33, 45, 0.2);
             color: var(--danger);
         }
 
@@ -755,7 +759,7 @@
                 let statusBadge = '';
                 if (log.ExitAt) {
                     if (!log.EnterAt) {
-                        statusBadge = '<span class="badge badge-exit" style="background: rgba(245, 158, 11, 0.15); color: var(--warning); border-color: rgba(245,158,11,0.2);">退室のみ</span>';
+                        statusBadge = '<span class="badge badge-exit" style="background: rgba(196, 112, 0, 0.15); color: var(--warning); border-color: rgba(196, 112, 0, 0.25);">退室のみ</span>';
                     } else {
                         statusBadge = '<span class="badge badge-exit">退室済</span>';
                     }

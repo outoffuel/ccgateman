@@ -10,16 +10,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0b0f19;
-            --bg-gradient: radial-gradient(circle at 50% 50%, #16223f 0%, #0b0f19 100%);
-            --primary-enter: #10b981;
-            --primary-enter-glow: rgba(16, 185, 129, 0.4);
-            --primary-exit: #f43f5e;
-            --primary-exit-glow: rgba(244, 63, 94, 0.4);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --glass-bg: rgba(17, 24, 39, 0.6);
-            --glass-border: rgba(255, 255, 255, 0.08);
+            --bg-color: #fbf3db;
+            --bg-gradient: radial-gradient(circle at 50% 50%, #ece3cc 0%, #fbf3db 100%);
+            --primary-enter: #489916;
+            --primary-enter-glow: rgba(72, 153, 22, 0.25);
+            --primary-exit: #d2212d;
+            --primary-exit-glow: rgba(210, 33, 45, 0.25);
+            --text-main: #3a4d53;
+            --text-muted: #819795;
+            --text-normal: #53676d;
+            --glass-bg: rgba(236, 227, 204, 0.75);
+            --glass-border: rgba(129, 151, 149, 0.2);
             --glow-color: var(--primary-enter-glow);
         }
 
@@ -57,7 +58,7 @@
             font-size: 2rem;
             font-weight: 800;
             letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #3b82f6, #10b981);
+            background: linear-gradient(135deg, #0073e6, #489916);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             display: flex;
@@ -72,8 +73,8 @@
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background: #10b981;
-            box-shadow: 0 0 10px #10b981;
+            background: #489916;
+            box-shadow: 0 0 10px rgba(72, 153, 22, 0.5);
         }
 
         .system-time {
@@ -84,8 +85,8 @@
             font-size: 2.2rem;
             font-weight: 800;
             font-variant-numeric: tabular-nums;
-            color: #ffffff;
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+            color: #3a4d53;
+            text-shadow: 0 0 15px rgba(58, 77, 83, 0.1);
         }
 
         .date-display {
@@ -115,7 +116,7 @@
             border-radius: 100px;
             width: 380px;
             position: relative;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 10px 25px -5px rgba(129, 151, 149, 0.15);
             backdrop-filter: blur(12px);
             transition: all 0.3s ease;
         }
@@ -162,15 +163,15 @@
         }
 
         .mode-enter-active .mode-slider {
-            background: linear-gradient(135deg, #059669, #10b981);
+            background: linear-gradient(135deg, #489916, #60bc00);
             transform: translateX(0);
-            box-shadow: 0 0 20px var(--primary-enter-glow);
+            box-shadow: 0 0 20px rgba(72, 153, 22, 0.3);
         }
 
         .mode-exit-active .mode-slider {
-            background: linear-gradient(135deg, #e11d48, #f43f5e);
+            background: linear-gradient(135deg, #d2212d, #ff2626);
             transform: translateX(100%);
-            box-shadow: 0 0 20px var(--primary-exit-glow);
+            box-shadow: 0 0 20px rgba(210, 33, 45, 0.3);
         }
 
         .mode-enter-active .btn-enter {
@@ -193,7 +194,7 @@
             align-items: center;
             justify-content: center;
             gap: 1.5rem;
-            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            box-shadow: 0 20px 40px -15px rgba(129, 151, 149, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6);
             backdrop-filter: blur(12px);
             position: relative;
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
@@ -216,14 +217,14 @@
         .scan-target {
             width: 140px;
             height: 180px;
-            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border: 2px dashed rgba(83, 103, 109, 0.25);
             border-radius: 12px;
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(255, 255, 255, 0.3);
             transition: border-color 0.3s ease;
         }
 
@@ -243,8 +244,8 @@
         .scan-icon {
             width: 64px;
             height: 64px;
-            opacity: 0.25;
-            fill: #ffffff;
+            opacity: 0.35;
+            fill: var(--text-normal);
             transition: opacity 0.3s ease, fill 0.3s ease;
         }
 
@@ -260,7 +261,7 @@
 
         .scanner-message {
             font-size: 1.15rem;
-            color: var(--text-muted);
+            color: var(--text-normal);
             text-align: center;
             font-weight: 600;
             letter-spacing: 0.5px;
@@ -268,7 +269,8 @@
 
         .scanner-hint {
             font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.25);
+            color: var(--text-normal);
+            opacity: 0.7;
             margin-top: -0.5rem;
         }
 
@@ -277,20 +279,20 @@
             display: flex;
             align-items: center;
             gap: 0.4rem;
-            background: rgba(16, 185, 129, 0.1);
-            color: #10b981;
+            background: rgba(72, 153, 22, 0.1);
+            color: #489916;
             padding: 0.4rem 0.8rem;
             border-radius: 100px;
             font-size: 0.75rem;
             font-weight: 600;
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(72, 153, 22, 0.25);
             transition: all 0.3s ease;
         }
 
         .focus-indicator.unfocused {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-            border-color: rgba(239, 68, 68, 0.2);
+            background: rgba(210, 33, 45, 0.1);
+            color: #d2212d;
+            border-color: rgba(210, 33, 45, 0.25);
             animation: pulse-border 1.5s infinite;
         }
 
@@ -318,7 +320,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(3, 7, 18, 0.85);
+            background: rgba(251, 243, 219, 0.85);
             backdrop-filter: blur(15px);
             z-index: 10;
             display: flex;
@@ -335,9 +337,9 @@
         }
 
         .result-card {
-            background: rgba(17, 24, 39, 0.9);
+            background: #ece3cc;
             border: 2px solid var(--result-color, var(--primary-enter));
-            box-shadow: 0 0 40px var(--result-glow, var(--primary-enter-glow));
+            box-shadow: 0 10px 40px var(--result-glow, var(--primary-enter-glow));
             width: 90%;
             max-width: 500px;
             border-radius: 28px;
@@ -362,7 +364,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: var(--result-bg, rgba(16, 185, 129, 0.1));
+            background: var(--result-bg, rgba(72, 153, 22, 0.15));
             color: var(--result-color, var(--primary-enter));
             font-size: 2.5rem;
             margin-bottom: 0.5rem;
@@ -372,7 +374,7 @@
             font-size: 1.8rem;
             font-weight: 800;
             margin-bottom: 0.2rem;
-            color: #ffffff;
+            color: var(--text-main);
         }
 
         .result-details {
@@ -380,8 +382,8 @@
             flex-direction: column;
             gap: 0.4rem;
             width: 100%;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: rgba(251, 243, 219, 0.5);
+            border: 1px solid rgba(129, 151, 149, 0.25);
             border-radius: 16px;
             padding: 1.2rem;
             margin-top: 0.5rem;
@@ -399,7 +401,7 @@
 
         .result-value {
             font-weight: 600;
-            color: #ffffff;
+            color: var(--text-main);
         }
 
         .result-message {
@@ -407,7 +409,7 @@
             font-weight: 600;
             line-height: 1.5;
             white-space: pre-wrap;
-            color: #ffffff;
+            color: var(--text-main);
             margin: 0.5rem 0;
         }
 
@@ -422,23 +424,24 @@
         }
 
         .admin-link {
-            color: var(--text-muted);
+            color: var(--text-normal);
             text-decoration: none;
             font-size: 0.9rem;
             transition: color 0.2s;
             display: flex;
             align-items: center;
             gap: 0.3rem;
+            font-weight: 600;
         }
 
         .admin-link:hover {
-            color: #3b82f6;
+            color: #0073e6;
         }
 
         .manual-btn {
             background: transparent;
             border: none;
-            color: var(--text-muted);
+            color: var(--text-normal);
             cursor: pointer;
             opacity: 0.5;
             transition: opacity 0.2s, transform 0.2s;
@@ -456,7 +459,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(3, 7, 18, 0.7);
+            background: rgba(251, 243, 219, 0.7);
             backdrop-filter: blur(8px);
             z-index: 20;
             display: flex;
@@ -473,15 +476,16 @@
         }
 
         .manual-card {
-            background: #111827;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #ece3cc;
+            border: 1px solid rgba(129, 151, 149, 0.3);
             border-radius: 20px;
             padding: 2rem;
             width: 360px;
             display: flex;
             flex-direction: column;
             gap: 1.2rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 25px 50px -12px rgba(129, 151, 149, 0.3);
+            color: var(--text-main);
         }
 
         .manual-card h3 {
@@ -491,11 +495,11 @@
 
         .manual-input {
             width: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #fbf3db;
+            border: 1px solid rgba(129, 151, 149, 0.3);
             border-radius: 8px;
             padding: 0.8rem 1rem;
-            color: #ffffff;
+            color: var(--text-main);
             font-size: 1rem;
             font-family: inherit;
             outline: none;
@@ -503,12 +507,12 @@
         }
 
         .manual-input:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+            border-color: #0073e6;
+            box-shadow: 0 0 10px rgba(0, 115, 230, 0.2);
         }
 
         .manual-submit {
-            background: #3b82f6;
+            background: #0073e6;
             color: #ffffff;
             border: none;
             border-radius: 8px;
@@ -519,7 +523,7 @@
         }
 
         .manual-submit:hover {
-            background: #2563eb;
+            background: #0082ff;
         }
 
         .manual-close {
@@ -547,13 +551,13 @@
 
         @keyframes pulse-border {
             0% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+                box-shadow: 0 0 0 0 rgba(210, 33, 45, 0.4);
             }
             70% {
-                box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+                box-shadow: 0 0 0 8px rgba(210, 33, 45, 0);
             }
             100% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+                box-shadow: 0 0 0 0 rgba(210, 33, 45, 0);
             }
         }
 
@@ -880,8 +884,8 @@
                 status.textContent = currentMode === 'enter' ? '入室完了' : '退室完了';
                 card.style.setProperty('--result-color', currentMode === 'enter' ? 'var(--primary-enter)' : 'var(--primary-enter)');
                 card.style.setProperty('--result-glow', currentMode === 'enter' ? 'var(--primary-enter-glow)' : 'var(--primary-enter-glow)');
-                iconBg.style.background = 'rgba(16, 185, 129, 0.15)';
-                iconBg.style.color = '#10b981';
+                iconBg.style.background = 'rgba(72, 153, 22, 0.15)';
+                iconBg.style.color = '#489916';
                 icon.textContent = '✓';
                 
                 // Show Student Details
@@ -896,8 +900,8 @@
                 status.textContent = 'エラー';
                 card.style.setProperty('--result-color', 'var(--primary-exit)');
                 card.style.setProperty('--result-glow', 'var(--primary-exit-glow)');
-                iconBg.style.background = 'rgba(244, 63, 94, 0.15)';
-                iconBg.style.color = '#f43f5e';
+                iconBg.style.background = 'rgba(210, 33, 45, 0.15)';
+                iconBg.style.color = '#d2212d';
                 icon.textContent = '✕';
                 
                 // Hide Student Details
