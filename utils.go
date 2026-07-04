@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	spaceRegex = regexp.MustCompile(`[\s\u3000]+`)
+	spaceRegex = regexp.MustCompile(`[\s\x{3000}]+`)
 )
 
 func getMasterPath() string {

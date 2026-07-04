@@ -84,8 +84,11 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if lastStatus == "入室" {
 			isEnter = false
-			if t, parseErr := time.Parse(TimeLayout, lastEnterTime); parseErr == nil {
+			if t, parseErr := time.ParseInLocation(TimeLayout, lastEnterTime, time.Local); parseErr == nil {
 				diff := now.Sub(t)
+				if diff < 0 {
+					diff = -diff
+				}
 				hours := int(diff.Hours())
 				minutes := int(diff.Minutes()) % 60
 				if hours > 0 {
@@ -235,8 +238,11 @@ func handleNightlyForcedExit(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var stayDuration string
-		if t, parseErr := time.Parse(TimeLayout, eTime); parseErr == nil {
+		if t, parseErr := time.ParseInLocation(TimeLayout, eTime, time.Local); parseErr == nil {
 			diff := now.Sub(t)
+			if diff < 0 {
+				diff = -diff
+			}
 			hours := int(diff.Hours())
 			minutes := int(diff.Minutes()) % 60
 			if hours > 0 {

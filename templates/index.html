@@ -1,216 +1,276 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GateMan - 入退室打刻システム</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes fadeOut {
-            from { opacity: 1; transform: scale(1); }
-            to { opacity: 0; transform: scale(0.95); }
-        }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-        .animate-fade-out { animation: fadeOut 0.3s ease-in forwards; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .animate-spin { animation: spin 0.8s linear infinite; }
-        #card-input:focus { outline: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GateMan - 入退室打刻システム</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+@keyframes scanline {
+  0% { top: 0; }
+  50% { top: 100%; }
+  100% { top: 0; }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(59,130,246,.3); }
+  70% { box-shadow: 0 0 0 16px rgba(59,130,246,0); }
+  100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+}
+.animate-scanline { animation: scanline 2.5s ease-in-out infinite; }
+.animate-pulse-ring { animation: pulse-ring 1.8s infinite; }
+.result-enter { animation: resultIn 0.35s cubic-bezier(.21,1.02,.73,1) forwards; }
+.result-leave { animation: resultOut 0.3s ease-in forwards; }
+@keyframes resultIn {
+  from { opacity: 0; transform: scale(.88) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes resultOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(.92); }
+}
+</style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-amber-50 to-stone-100 flex flex-col items-center justify-center p-4 sm:p-8">
+<body class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-stone-50 via-amber-50/40 to-stone-100 selection:bg-blue-200">
 
-    <div class="w-full max-w-md mx-auto">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl font-bold text-stone-700 tracking-tight">GateMan</h1>
-            <p class="text-stone-400 text-sm mt-1">入退室打刻システム</p>
-        </div>
-
-        <div class="bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl border border-stone-200/60 p-6 sm:p-8">
-            <div class="mb-6 text-center">
-                <div class="text-4xl font-light text-stone-400 mb-2" id="clock">--:--:--</div>
-                <div class="text-sm text-stone-400" id="clock-date">----</div>
-            </div>
-
-            <div class="relative">
-                <input
-                    type="text"
-                    id="card-input"
-                    autofocus
-                    autocomplete="off"
-                    placeholder="カードIDをスキャン / 入力"
-                    class="w-full text-center text-xl sm:text-2xl py-4 px-4 rounded-xl border-2 border-stone-200 bg-white/80 text-stone-700 placeholder-stone-300 transition-all duration-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled
-                >
-                <div id="loading-indicator" class="hidden absolute right-4 top-1/2 -translate-y-1/2">
-                    <svg class="animate-spin h-6 w-6 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                </div>
-            </div>
-
-            <p class="text-center text-stone-400 text-sm mt-3" id="hint-text">カードをリーダーにかざすか、IDを入力してEnterキーを押してください</p>
-        </div>
-
-        <p class="text-center text-stone-300 text-xs mt-6">GateMan v2.0</p>
+  <!-- Main Card -->
+  <div class="w-full max-w-lg mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="text-center mb-10">
+      <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white text-2xl font-bold shadow-lg shadow-blue-200 mb-4">G</div>
+      <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-stone-800">GateMan</h1>
+      <p class="text-stone-400 text-sm mt-1">入退室打刻システム</p>
     </div>
 
-    <div id="result-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
-        <div id="result-card" class="animate-fade-in w-full max-w-sm rounded-2xl shadow-2xl border p-6 sm:p-8 text-center bg-white">
-            <div id="result-icon" class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-3xl"></div>
-            <div id="result-title" class="text-xl font-bold text-stone-700 mb-1"></div>
-            <div id="result-message" class="text-sm text-stone-500 mb-4"></div>
-            <div id="result-details" class="hidden bg-stone-50 rounded-xl p-4 text-left text-sm space-y-2 border border-stone-100">
-                <div class="flex justify-between"><span class="text-stone-400">学籍番号</span><span class="font-medium text-stone-600" id="res-sid">-</span></div>
-                <div class="flex justify-between"><span class="text-stone-400">区分</span><span class="font-medium text-stone-600" id="res-attr">-</span></div>
-                <div class="flex justify-between"><span class="text-stone-400">打刻時刻</span><span class="font-medium text-stone-600" id="res-time">-</span></div>
-            </div>
-        </div>
+    <!-- Clock -->
+    <div class="text-center mb-6">
+      <div class="text-4xl sm:text-5xl font-light tracking-wider text-stone-600 tabular-nums" id="clock">--:--:--</div>
+      <div class="text-sm text-stone-400 mt-1" id="clock-date">----</div>
     </div>
 
-    <script>
-        const input = document.getElementById('card-input');
-        const loading = document.getElementById('loading-indicator');
-        const hint = document.getElementById('hint-text');
-        const overlay = document.getElementById('result-overlay');
-        const resultCard = document.getElementById('result-card');
-        const resultIcon = document.getElementById('result-icon');
-        const resultTitle = document.getElementById('result-title');
-        const resultMsg = document.getElementById('result-message');
-        const resultDetails = document.getElementById('result-details');
-        const resSid = document.getElementById('res-sid');
-        const resAttr = document.getElementById('res-attr');
-        const resTime = document.getElementById('res-time');
+    <!-- Scanner Panel -->
+    <div class="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-stone-200/60 p-8 relative transition-all duration-300" id="scanner-panel">
+      <!-- Scan target area -->
+      <div class="relative w-28 h-36 mx-auto mb-6 rounded-xl border-2 border-dashed border-stone-200 bg-stone-50/60 flex items-center justify-center overflow-hidden">
+        <svg class="w-12 h-12 text-stone-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/>
+          <line x1="6" y1="12" x2="6.01" y2="12"/><line x1="18" y1="12" x2="18.01" y2="12"/>
+          <rect x="10" y="12" width="4" height="1"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/>
+          <line x1="14" y1="16" x2="14.01" y2="16"/><line x1="18" y1="16" x2="18.01" y2="16"/>
+        </svg>
+        <div class="animate-scanline absolute left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-blue-400/60 to-transparent"></div>
+      </div>
 
-        let isProcessing = false;
-        let dismissTimer = null;
+      <!-- Input -->
+      <div class="relative">
+        <input type="text" id="card-input" autofocus autocomplete="off"
+          placeholder="カードをスキャン / IDを入力"
+          class="w-full h-14 text-center text-xl sm:text-2xl tracking-wide rounded-2xl border-2 bg-white text-stone-700 placeholder-stone-300 transition-all duration-200 outline-none
+            focus:border-blue-400 focus:ring-4 focus:ring-blue-100
+            disabled:opacity-40 disabled:cursor-not-allowed disabled:bg-stone-50"
+          readonly onfocus="this.removeAttribute('readonly')">
+        <div id="loading-indicator" class="hidden absolute right-5 top-1/2 -translate-y-1/2">
+          <svg class="animate-spin w-6 h-6 text-blue-400" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"/>
+            <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" class="opacity-75"/>
+          </svg>
+        </div>
+      </div>
 
-        function updateClock() {
-            const n = new Date();
-            document.getElementById('clock').textContent =
-                String(n.getHours()).padStart(2,'0') + ':' +
-                String(n.getMinutes()).padStart(2,'0') + ':' +
-                String(n.getSeconds()).padStart(2,'0');
-            const days = ['日','月','火','水','木','金','土'];
-            document.getElementById('clock-date').textContent =
-                n.getFullYear() + '年' + (n.getMonth()+1) + '月' + n.getDate() + '日 ' + days[n.getDay()] + '曜日';
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
+      <!-- Focus indicator -->
+      <div id="focus-badge" class="mt-4 flex items-center justify-center gap-2 text-xs text-stone-400">
+        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-200" id="focus-dot"></span>
+        <span id="focus-text">入力待受中</span>
+      </div>
+    </div>
 
-        function enableInput() {
-            input.disabled = false;
-            loading.classList.add('hidden');
-            hint.textContent = 'カードをリーダーにかざすか、IDを入力してEnterキーを押してください';
-            input.focus();
-        }
+    <p class="text-center text-xs text-stone-300 mt-8">GateMan v2.0</p>
+  </div>
 
-        function disableInput() {
-            input.disabled = true;
-            loading.classList.remove('hidden');
-            hint.textContent = '処理中...';
-        }
+  <!-- Result Overlay -->
+  <div id="result-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/15 backdrop-blur-sm">
+    <div id="result-card" class="result-enter w-full max-w-sm rounded-3xl border-2 p-8 text-center bg-white shadow-2xl">
+      <div id="result-icon" class="w-16 h-16 mx-auto mb-5 rounded-full flex items-center justify-center text-3xl"></div>
+      <div id="result-title" class="text-2xl font-bold mb-2"></div>
+      <p id="result-message" class="text-sm mb-5 leading-relaxed whitespace-pre-wrap"></p>
+      <div id="result-details" class="hidden bg-stone-50 rounded-2xl p-4 text-left text-sm space-y-2.5 border border-stone-100">
+        <div class="flex justify-between"><span class="text-stone-400">学籍番号</span><span class="font-semibold text-stone-600" id="res-sid">-</span></div>
+        <div class="flex justify-between"><span class="text-stone-400">区分</span><span class="font-semibold text-stone-600" id="res-attr">-</span></div>
+        <div class="flex justify-between"><span class="text-stone-400">打刻時刻</span><span class="font-semibold text-stone-600" id="res-time">-</span></div>
+      </div>
+    </div>
+  </div>
 
-        function showResult(data) {
-            const isOk = data.success;
-            const stay = data.stay_duration ? '（滞在時間: ' + data.stay_duration + '）' : '';
-            const msg = data.message || (isOk ? '打刻が完了しました。' : 'エラーが発生しました。');
+<script>
+(function() {
+  const input = document.getElementById('card-input');
+  const loading = document.getElementById('loading-indicator');
+  const overlay = document.getElementById('result-overlay');
+  const resultCard = document.getElementById('result-card');
+  const icon = document.getElementById('result-icon');
+  const title = document.getElementById('result-title');
+  const msg = document.getElementById('result-message');
+  const details = document.getElementById('result-details');
+  const resSid = document.getElementById('res-sid');
+  const resAttr = document.getElementById('res-attr');
+  const resTime = document.getElementById('res-time');
+  const focusDot = document.getElementById('focus-dot');
+  const focusText = document.getElementById('focus-text');
 
-            if (isOk) {
-                resultCard.className = 'animate-fade-in w-full max-w-sm rounded-2xl shadow-2xl border p-6 sm:p-8 text-center bg-white border-emerald-200';
-                resultIcon.className = 'w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-3xl bg-emerald-100 text-emerald-600';
-                resultIcon.textContent = '✓';
-                resultTitle.textContent = data.status === '退室' ? '退室完了' : '入室完了';
-                resultTitle.className = 'text-xl font-bold text-emerald-700 mb-1';
-                if (data.student_id) {
-                    resultDetails.classList.remove('hidden');
-                    resSid.textContent = data.student_id;
-                    resAttr.textContent = data.attr_label || '-';
-                    resTime.textContent = data.timestamp || '-';
-                } else {
-                    resultDetails.classList.add('hidden');
-                }
-            } else {
-                resultCard.className = 'animate-fade-in w-full max-w-sm rounded-2xl shadow-2xl border p-6 sm:p-8 text-center bg-white border-red-200';
-                resultIcon.className = 'w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-3xl bg-red-100 text-red-600';
-                resultIcon.textContent = '✕';
-                resultTitle.textContent = 'エラー';
-                resultTitle.className = 'text-xl font-bold text-red-700 mb-1';
-                resultDetails.classList.add('hidden');
-            }
-            resultMsg.textContent = msg;
-            overlay.classList.remove('hidden');
-            isProcessing = false;
+  let locked = false;
+  let dismissTimer = null;
+  let focusInterval = null;
 
-            if (dismissTimer) clearTimeout(dismissTimer);
-            dismissTimer = setTimeout(dismissResult, 5000);
-        }
+  // ---- Clock ----
+  function tick() {
+    const n = new Date();
+    document.getElementById('clock').textContent =
+      String(n.getHours()).padStart(2,'0')+':'+
+      String(n.getMinutes()).padStart(2,'0')+':'+
+      String(n.getSeconds()).padStart(2,'0');
+    const days = ['日','月','火','水','木','金','土'];
+    document.getElementById('clock-date').textContent =
+      n.getFullYear()+'年'+(n.getMonth()+1)+'月'+n.getDate()+'日 '+days[n.getDay()]+'曜日';
+  }
+  tick();
+  setInterval(tick, 1000);
 
-        function dismissResult() {
-            resultCard.className = resultCard.className.replace('animate-fade-in', 'animate-fade-out');
-            setTimeout(() => {
-                overlay.classList.add('hidden');
-                resultCard.className = resultCard.className.replace('animate-fade-out', 'animate-fade-in');
-                enableInput();
-            }, 300);
-        }
+  // ---- Focus management ----
+  function grabFocus() {
+    if (overlay.classList.contains('hidden') && !locked) {
+      input.focus();
+    }
+  }
 
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                if (dismissTimer) clearTimeout(dismissTimer);
-                dismissResult();
-            }
-        });
+  function setFocusBadge(active) {
+    if (active) {
+      focusDot.className = 'inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-200';
+      focusText.textContent = '入力待受中';
+    } else {
+      focusDot.className = 'inline-block w-2 h-2 rounded-full bg-amber-400 shadow-sm shadow-amber-200';
+      focusText.textContent = 'タップしてフォーカス';
+    }
+  }
 
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (isProcessing) return;
-                const val = input.value.trim();
-                if (!val) return;
-                isProcessing = true;
-                disableInput();
-                processScan(val);
-            }
-        });
+  // Steal focus back aggressively on any click (except interactive elements)
+  document.addEventListener('click', function(e) {
+    const tag = e.target.tagName;
+    if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    if (e.target.closest('#result-card')) return;
+    grabFocus();
+  });
 
-        function processScan(cardID) {
-            const formData = new FormData();
-            formData.append('card_id', cardID);
+  input.addEventListener('focus', function() { setFocusBadge(true); });
+  input.addEventListener('blur', function() {
+    setFocusBadge(false);
+    // Retry focus after a delay unless a modal is open
+    setTimeout(grabFocus, 200);
+  });
 
-            input.value = '';
+  // ---- Processing lock ----
+  function lock() {
+    locked = true;
+    input.disabled = true;
+    loading.classList.remove('hidden');
+    focusDot.className = 'inline-block w-2 h-2 rounded-full bg-blue-400 animate-pulse-ring';
+    focusText.textContent = '処理中...';
+  }
 
-            fetch('/api/scan', { method: 'POST', body: formData })
-                .then(r => r.json())
-                .then(data => {
-                    showResult(data);
-                })
-                .catch(err => {
-                    console.error('Scan error:', err);
-                    isProcessing = false;
-                    showResult({ success: false, message: 'サーバー通信エラーが発生しました。' });
-                });
-        }
+  function unlock() {
+    locked = false;
+    input.disabled = false;
+    loading.classList.add('hidden');
+    grabFocus();
+  }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                input.disabled = false;
-                input.focus();
-            }, 300);
-        });
+  // ---- Submit ----
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (locked) return;
+      const val = input.value.trim();
+      if (!val) return;
+      lock();
+      processScan(val);
+    }
+  });
 
-        document.addEventListener('click', () => {
-            if (!input.disabled && overlay.classList.contains('hidden')) {
-                input.focus();
-            }
-        });
-    </script>
+  function processScan(cardID) {
+    const fd = new FormData();
+    fd.append('card_id', cardID);
+    input.value = '';
+
+    fetch('/api/scan', { method:'POST', body:fd })
+      .then(function(r) { return r.json(); })
+      .then(function(data) { showResult(data); })
+      .catch(function() {
+        locked = false;
+        showResult({ success:false, message:'サーバー通信エラーが発生しました。' });
+      });
+  }
+
+  // ---- Result display ----
+  function showResult(data) {
+    const ok = data.success;
+
+    if (ok) {
+      resultCard.className = 'result-enter w-full max-w-sm rounded-3xl border-2 p-8 text-center bg-white border-emerald-200 shadow-2xl shadow-emerald-100/50';
+      icon.className = 'w-16 h-16 mx-auto mb-5 rounded-full flex items-center justify-center text-3xl bg-emerald-100 text-emerald-500';
+      icon.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      title.textContent = data.status === '退室' ? '退室完了' : '入室完了';
+      title.className = 'text-2xl font-bold text-emerald-700 mb-2';
+      msg.textContent = data.message || '打刻が完了しました。';
+      msg.className = 'text-sm mb-5 leading-relaxed whitespace-pre-wrap text-stone-500';
+      if (data.student_id) {
+        details.classList.remove('hidden');
+        resSid.textContent = data.student_id;
+        resAttr.textContent = data.attr_label || '-';
+        resTime.textContent = data.timestamp || '-';
+      } else {
+        details.classList.add('hidden');
+      }
+    } else {
+      resultCard.className = 'result-enter w-full max-w-sm rounded-3xl border-2 p-8 text-center bg-white border-red-200 shadow-2xl shadow-red-100/50';
+      icon.className = 'w-16 h-16 mx-auto mb-5 rounded-full flex items-center justify-center text-3xl bg-red-100 text-red-500';
+      icon.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+      title.textContent = 'エラー';
+      title.className = 'text-2xl font-bold text-red-700 mb-2';
+      msg.textContent = data.message || '打刻に失敗しました。';
+      msg.className = 'text-sm mb-5 leading-relaxed whitespace-pre-wrap text-stone-500';
+      details.classList.add('hidden');
+    }
+
+    overlay.classList.remove('hidden');
+    if (dismissTimer) clearTimeout(dismissTimer);
+    dismissTimer = setTimeout(dismissResult, 5000);
+  }
+
+  function dismissResult() {
+    resultCard.className = resultCard.className.replace('result-enter','result-leave');
+    setTimeout(function() {
+      overlay.classList.add('hidden');
+      unlock();
+    }, 300);
+  }
+
+  // Click overlay background to dismiss early
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) {
+      if (dismissTimer) clearTimeout(dismissTimer);
+      dismissResult();
+    }
+  });
+
+  // ---- Initial boot ----
+  window.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+      input.disabled = false;
+      grabFocus();
+    }, 200);
+  });
+})();
+</script>
 </body>
 </html>
