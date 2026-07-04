@@ -84,10 +84,10 @@
                             </div>
                             <div class="form-group">
                                 <label for="reg-attribute">属性 *</label>
-                                <select id="reg-attribute" class="form-control" required>
-                                    <option value="学生">学生</option>
-                                    <option value="学生スタッフ">学生スタッフ</option>
-                                    <option value="教職員">教職員</option>
+                                <select id="reg-attr-code" class="form-control" required>
+                                    <option value="1">学生</option>
+                                    <option value="9">学生スタッフ</option>
+                                    <option value="0">教職員</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -118,6 +118,17 @@
                             <button class="btn btn-secondary" onclick="reloadMasterCache()">
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
                                 マスタ再読み込み (Excel同期)
+                            </button>
+                            <button class="btn btn-secondary" onclick="toggleAdvanced()" style="border-color: rgba(196,112,0,0.3); color: var(--warning);">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 0 0 4.561 21h14.878a2 2 0 0 0 1.94-1.515L22 17M3 10h18"/></svg>
+                                高度操作
+                            </button>
+                        </div>
+                        <div id="advanced-panel" style="display:none; margin-top:1rem; padding-top:1rem; border-top:1px solid var(--glass-border);">
+                            <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.8rem; font-weight:600;">年度更新</div>
+                            <button class="btn btn-secondary" onclick="confirmYearRollover()" style="border-color: rgba(210,33,45,0.3); color: var(--danger);">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                次年度準備（エクスポート & 新シート作成）
                             </button>
                         </div>
                     </div>
@@ -181,8 +192,8 @@
                                         <th>学籍番号</th>
                                         <th>氏名</th>
                                         <th>種別</th>
-                                        <th>入室時刻</th>
-                                        <th>退室時刻</th>
+                                        <th>時刻</th>
+                                        <th>滞在時間</th>
                                     </tr>
                                 </thead>
                                 <tbody id="logs-list-body">
@@ -305,12 +316,8 @@
 
             tbody.innerHTML = logs.map(log => {
                 let statusBadge = '';
-                if (log.ExitAt) {
-                    if (!log.EnterAt) {
-                        statusBadge = '<span class="badge badge-exit" style="background: rgba(196, 112, 0, 0.15); color: var(--warning); border-color: rgba(196, 112, 0, 0.25);">退室のみ</span>';
-                    } else {
-                        statusBadge = '<span class="badge badge-exit">退室済</span>';
-                    }
+                if (log.Status === '退室' || log.Status === '強制退室') {
+                    statusBadge = '<span class="badge badge-exit">退室済</span>';
                 } else {
                     statusBadge = '<span class="badge badge-enter">入室中</span>';
                 }
@@ -320,8 +327,8 @@
                         <td>${escapeHtml(log.StudentID)}</td>
                         <td style="font-weight: 600;">${escapeHtml(log.Name)}</td>
                         <td>${statusBadge}</td>
-                        <td>${log.EnterAt ? formatDateString(log.EnterAt) : '<span style="color:var(--text-muted);">-</span>'}</td>
-                        <td>${log.ExitAt ? formatDateString(log.ExitAt) : '<span style="color:var(--text-muted); font-style:italic;">入室中</span>'}</td>
+                        <td>${log.Timestamp ? formatDateString(log.Timestamp) : '<span style="color:var(--text-muted);">-</span>'}</td>
+                        <td>${log.Status === '入室' ? '<span style="color:var(--text-muted); font-style:italic;">滞在中</span>' : '<span style="color:var(--text-muted);">-</span>'}</td>
                     </tr>
                 `;
             }).join('');
@@ -349,14 +356,14 @@
             const cardID = document.getElementById('reg-card-id').value.trim();
             const studentID = document.getElementById('reg-student-id').value.trim();
             const name = document.getElementById('reg-name').value.trim();
-            const attribute = document.getElementById('reg-attribute').value;
+            const attrCode = document.getElementById('reg-attr-code').value;
             const department = document.getElementById('reg-department').value.trim();
 
             const formData = new FormData();
             formData.append('card_id', cardID);
             formData.append('student_id', studentID);
             formData.append('name', name);
-            formData.append('attribute', attribute);
+            formData.append('attr_code', attrCode);
             formData.append('department', department);
 
             fetch('/api/users', {
@@ -397,6 +404,42 @@
                 console.error('Error reloading:', error);
                 showToast('サーバー通信エラーが発生しました。', false);
             });
+        }
+
+        // Toggle advanced operations panel
+        function toggleAdvanced() {
+            const panel = document.getElementById('advanced-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Confirm and execute year rollover
+        function confirmYearRollover() {
+            if (!confirm('現在の年度の登録者データをアーカイブし、新年度シートを作成します。よろしいですか？')) {
+                return;
+            }
+
+            const btn = document.querySelector('#advanced-panel .btn');
+            btn.disabled = true;
+            btn.textContent = '処理中...';
+
+            fetch('/api/year/rollover', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast(data.message.replace('\\n', ' / '), true);
+                        loadUsers();
+                    } else {
+                        showToast('エラー: ' + data.message, false);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('サーバー通信エラーが発生しました。', false);
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.textContent = '次年度準備（エクスポート & 新シート作成）';
+                });
         }
 
         // Escape HTML to prevent XSS

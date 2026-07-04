@@ -305,3 +305,114 @@ func findUserByStudentID(studentID string) (User, bool) {
 	}
 	return User{}, false
 }
+
+func exportCurrentYearUsers(archiveDir string) (string, error) {
+	master := getMasterPath()
+	local := getLocalCopyPath()
+
+	if err := copyFile(master, local); err != nil {
+		return "", fmt.Errorf("failed to copy master for export: %w", err)
+	}
+
+	f, err := excelize.OpenFile(local)
+	if err != nil {
+		return "", fmt.Errorf("failed to open local copy for export: %w", err)
+	}
+	defer f.Close()
+
+	sheetName := getFiscalYearSheetName()
+	sheets := f.GetSheetList()
+
+	sheetExists := false
+	for _, s := range sheets {
+		if s == sheetName {
+			sheetExists = true
+			break
+		}
+	}
+	if !sheetExists {
+		if len(sheets) > 0 {
+			sheetName = sheets[0]
+		} else {
+			return "", fmt.Errorf("no sheets found in master file")
+		}
+	}
+
+	if err := os.MkdirAll(archiveDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create archive directory: %w", err)
+	}
+
+	exportName := fmt.Sprintf("entry_master_%s.xlsx", sheetName)
+	exportPath := filepath.Join(archiveDir, exportName)
+
+	out := excelize.NewFile()
+	index, err := out.NewSheet(sheetName)
+	if err != nil {
+		return "", fmt.Errorf("failed to create export sheet: %w", err)
+	}
+	out.SetActiveSheet(index)
+
+	rows, err := f.GetRows(sheetName)
+	if err != nil {
+		return "", fmt.Errorf("failed to read rows: %w", err)
+	}
+
+	for rowIdx, row := range rows {
+		for colIdx, val := range row {
+			cell, err := excelize.CoordinatesToCellName(colIdx+1, rowIdx+1)
+			if err == nil {
+				_ = out.SetCellValue(sheetName, cell, val)
+			}
+		}
+	}
+
+	_ = out.DeleteSheet("Sheet1")
+
+	if err := out.SaveAs(exportPath); err != nil {
+		return "", fmt.Errorf("failed to save export file: %w", err)
+	}
+
+	return exportPath, nil
+}
+
+func createNextYearSheet() (string, error) {
+	master := getMasterPath()
+
+	if err := ensureMasterFileExists(master); err != nil {
+		return "", fmt.Errorf("failed to ensure master file exists: %w", err)
+	}
+
+	f, err := excelize.OpenFile(master)
+	if err != nil {
+		return "", fmt.Errorf("failed to open master Excel: %w", err)
+	}
+	defer f.Close()
+
+	nextSheetName := getNextFiscalYearSheetName()
+	sheets := f.GetSheetList()
+
+	for _, s := range sheets {
+		if s == nextSheetName {
+			return "", fmt.Errorf("シート '%s' は既に存在します", nextSheetName)
+		}
+	}
+
+	index, err := f.NewSheet(nextSheetName)
+	if err != nil {
+		return "", fmt.Errorf("failed to create sheet '%s': %w", nextSheetName, err)
+	}
+
+	headers := []string{"磁気ID", "学籍番号", "名前", "フリガナ", "区分コード", "学部学科"}
+	for colIdx, h := range headers {
+		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 1)
+		_ = f.SetCellValue(nextSheetName, cell, h)
+	}
+
+	f.SetActiveSheet(index)
+
+	if err := f.SaveAs(master); err != nil {
+		return "", fmt.Errorf("failed to save master Excel: %w", err)
+	}
+
+	return nextSheetName, nil
+}

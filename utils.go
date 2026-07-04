@@ -35,12 +35,26 @@ func getLocalCopyPath() string {
 }
 
 func getFiscalYearSheetName() string {
-	now := time.Now()
-	year := now.Year()
-	if now.Month() < time.April {
+	return fiscalYearSheetName(time.Now())
+}
+
+func getNextFiscalYearSheetName() string {
+	return fiscalYearSheetName(time.Now().AddDate(0, 6, 0))
+}
+
+func fiscalYearSheetName(t time.Time) string {
+	year := t.Year()
+	if t.Month() < time.April {
 		year--
 	}
 	return fmt.Sprintf("%d年度", year)
+}
+
+func getArchiveDir() string {
+	if runtime.GOOS == "windows" {
+		return "./archives"
+	}
+	return ArchiveDirDefault
 }
 
 func copyFile(src, dst string) error {

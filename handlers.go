@@ -21,6 +21,10 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "templates/index.html")
 }
 
+func handleAdmin(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "templates/admin.html")
+}
+
 func handleScan(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -155,19 +159,59 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	logs := make([]AccessLog, 0)
+	type LogEntry struct {
+		StudentID string `json:"StudentID"`
+		Name      string `json:"Name"`
+		Status    string `json:"Status"`
+		Timestamp string `json:"Timestamp"`
+	}
+
+	logs := make([]LogEntry, 0)
+	todayLogsCount := 0
+	activeUsersCount := 0
+	todayStart := time.Now().Format("2006-01-02") + " 00:00:00"
+
 	for rows.Next() {
-		var l AccessLog
+		var l struct {
+			ID        int
+			Timestamp string
+			CardID    string
+			StudentID string
+			Name      string
+			Result    string
+			AttrCode  string
+			AttrLabel string
+			Status    string
+			StayDuration string
+		}
 		if err := rows.Scan(&l.ID, &l.Timestamp, &l.CardID, &l.StudentID, &l.Name,
 			&l.Result, &l.AttrCode, &l.AttrLabel, &l.Status, &l.StayDuration); err != nil {
 			log.Printf("[Logs] Row scanning failed: %v", err)
 			continue
 		}
-		logs = append(logs, l)
+
+		logs = append(logs, LogEntry{
+			StudentID: l.StudentID,
+			Name:      l.Name,
+			Status:    l.Status,
+			Timestamp: l.Timestamp,
+		})
+
+		if l.Timestamp >= todayStart {
+			todayLogsCount++
+		}
+		if l.Status == "入室" {
+			activeUsersCount++
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(logs)
+	resp := map[string]interface{}{
+		"logs":             logs,
+		"todayLogsCount":   todayLogsCount,
+		"activeUsersCount": activeUsersCount,
+	}
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func insertLog(l AccessLog) error {
@@ -460,4 +504,38 @@ func handleExport(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "attachment; filename=access_log_export.xlsx")
 	_, _ = w.Write(buf.Bytes())
 	log.Printf("[Export] Log Excel sheet generated and exported successfully.")
+}
+
+func handleYearRollover(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	archiveDir := getArchiveDir()
+	exportPath, err := exportCurrentYearUsers(archiveDir)
+	if err != nil {
+		log.Printf("[YearRollover] Export failed: %v", err)
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"success":false,"message":"エクスポートに失敗しました: %s"}`, err.Error())))
+		return
+	}
+	log.Printf("[YearRollover] Exported current year users to %s", exportPath)
+
+	nextSheetName, err := createNextYearSheet()
+	if err != nil {
+		log.Printf("[YearRollover] Create next year sheet failed: %v", err)
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"success":false,"message":"次年度シート作成に失敗しました: %s"}`, err.Error())))
+		return
+	}
+	log.Printf("[YearRollover] Created next year sheet '%s'", nextSheetName)
+
+	resp := map[string]interface{}{
+		"success":    true,
+		"message":    fmt.Sprintf("%s のデータをアーカイブしました\n新年度シート '%s' を作成しました", getFiscalYearSheetName(), nextSheetName),
+		"exportPath": exportPath,
+		"nextSheet":  nextSheetName,
+	}
+	_ = json.NewEncoder(w).Encode(resp)
 }

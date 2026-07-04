@@ -37,6 +37,7 @@ type ScanResponse struct {
 const (
 	MasterPathDefault    = "/mnt/nas/entry_master.xlsx"
 	LocalCopyPathDefault = "/tmp/local_master.xlsx"
+	ArchiveDirDefault    = "/mnt/nas/archives"
 	TimeLayout           = "2006-01-02 15:04:05"
 )
 

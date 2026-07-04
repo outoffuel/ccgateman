@@ -20,11 +20,13 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	http.HandleFunc("/", handleIndex)
+	http.HandleFunc("/admin", handleAdmin)
 	http.HandleFunc("/api/scan", handleScan)
 	http.HandleFunc("/api/logs", handleLogs)
 	http.HandleFunc("/api/users", handleUsers)
 	http.HandleFunc("/api/users/reload", handleUsersReload)
 	http.HandleFunc("/api/export", handleExport)
+	http.HandleFunc("/api/year/rollover", handleYearRollover)
 	http.HandleFunc("/api/nightly-force-exit", handleNightlyForcedExit)
 
 	ips := getLocalIPs()
@@ -34,9 +36,11 @@ func main() {
 	log.Println("--------------------------------------------------")
 	log.Println("Local Access (on Raspberry Pi):")
 	log.Printf("  打刻画面: http://localhost%s\n", port)
+	log.Printf("  管理画面: http://localhost%s/admin\n", port)
 	log.Println("Remote Access (from other PCs):")
 	for _, ip := range ips {
 		log.Printf("  打刻画面: http://%s%s\n", ip, port)
+		log.Printf("  管理画面: http://%s%s/admin\n", ip, port)
 	}
 	log.Println("--------------------------------------------------")
 
