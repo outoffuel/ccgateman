@@ -19,7 +19,10 @@ func main() {
 		log.Printf("[Master] Warning: Master data reload failed: %v", err)
 	}
 
-	// 3. Serve Frontend Pages & API Endpoints
+	// 3. Serve static files (CSS, JS, etc.)
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
+	// 4. Serve Frontend Pages & API Endpoints
 	http.HandleFunc("/", handleIndex)
 	http.HandleFunc("/admin", handleAdmin)
 	http.HandleFunc("/api/scan", handleScan)
@@ -28,7 +31,7 @@ func main() {
 	http.HandleFunc("/api/logs", handleLogs)
 	http.HandleFunc("/api/export", handleExport)
 
-	// 4. Start HTTP Server
+	// 5. Start HTTP Server
 	ips := getLocalIPs()
 	port := ":8080"
 
