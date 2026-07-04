@@ -9,7 +9,6 @@ import (
 
 var db *sql.DB
 
-// initDB initializes SQLite database and creates the table.
 func initDB() error {
 	var err error
 	db, err = sql.Open("sqlite", "entry_log.db")
@@ -21,17 +20,21 @@ func initDB() error {
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Create table schema
 	query := `
-	CREATE TABLE IF NOT EXISTS entry_logs (
+	CREATE TABLE IF NOT EXISTS access_logs (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		student_id TEXT NOT NULL,
+		timestamp TEXT NOT NULL,
+		card_id TEXT,
+		student_id TEXT,
 		name TEXT NOT NULL,
-		enter_at TEXT,
-		exit_at TEXT
+		result TEXT NOT NULL,
+		attr_code TEXT DEFAULT '',
+		attr_label TEXT DEFAULT '',
+		status TEXT NOT NULL,
+		stay_duration TEXT DEFAULT '-'
 	);`
 	if _, err = db.Exec(query); err != nil {
-		return fmt.Errorf("failed to create entry_logs table: %w", err)
+		return fmt.Errorf("failed to create access_logs table: %w", err)
 	}
 
 	return nil

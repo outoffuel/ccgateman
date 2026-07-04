@@ -4,379 +4,212 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GateMan - 入退室打刻システム</title>
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/index.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.95); }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        .animate-fade-out { animation: fadeOut 0.3s ease-in forwards; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .animate-spin { animation: spin 0.8s linear infinite; }
+        #card-input:focus { outline: none; }
+    </style>
 </head>
-<body class="mode-enter-active">
+<body class="min-h-screen bg-gradient-to-br from-amber-50 to-stone-100 flex flex-col items-center justify-center p-4 sm:p-8">
 
-    <header>
-        <div class="logo" id="logo-refresh" onclick="location.reload()">GateMan</div>
-        <div class="system-time">
-            <div class="time-display" id="clock-time">00:00:00</div>
-            <div class="date-display" id="clock-date">2026年05月22日 金曜日</div>
-        </div>
-    </header>
-
-    <main>
-        <!-- Mode Switcher -->
-        <div class="mode-container">
-            <div class="mode-slider"></div>
-            <button class="mode-btn btn-enter" onclick="setMode('enter')">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-                入室
-            </button>
-            <button class="mode-btn btn-exit" onclick="setMode('exit')">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                退室
-            </button>
+    <div class="w-full max-w-md mx-auto">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl sm:text-4xl font-bold text-stone-700 tracking-tight">GateMan</h1>
+            <p class="text-stone-400 text-sm mt-1">入退室打刻システム</p>
         </div>
 
-        <!-- Scanner Interaction -->
-        <div class="scanner-card" id="scanner-wrapper">
-            <div class="scan-target">
-                <!-- Smartcard Icon -->
-                <svg class="scan-icon" viewBox="0 0 24 24">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zm0 4h16V6H4v2zm0 10h16V10H4v8zm2-6h3v4H6v-4z"/>
-                </svg>
-            </div>
-            
-            <div class="scanner-message" id="prompt-message">
-                カードをタッチしてください（入室）
-            </div>
-            <div class="scanner-hint">
-                リーダーにかざすと自動で入力されます
+        <div class="bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl border border-stone-200/60 p-6 sm:p-8">
+            <div class="mb-6 text-center">
+                <div class="text-4xl font-light text-stone-400 mb-2" id="clock">--:--:--</div>
+                <div class="text-sm text-stone-400" id="clock-date">----</div>
             </div>
 
-            <!-- Focus Status Indicator -->
-            <div class="focus-indicator" id="focus-status">
-                <span class="focus-dot"></span>
-                <span id="focus-text">自動入力有効</span>
+            <div class="relative">
+                <input
+                    type="text"
+                    id="card-input"
+                    autofocus
+                    autocomplete="off"
+                    placeholder="カードIDをスキャン / 入力"
+                    class="w-full text-center text-xl sm:text-2xl py-4 px-4 rounded-xl border-2 border-stone-200 bg-white/80 text-stone-700 placeholder-stone-300 transition-all duration-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled
+                >
+                <div id="loading-indicator" class="hidden absolute right-4 top-1/2 -translate-y-1/2">
+                    <svg class="animate-spin h-6 w-6 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
             </div>
+
+            <p class="text-center text-stone-400 text-sm mt-3" id="hint-text">カードをリーダーにかざすか、IDを入力してEnterキーを押してください</p>
         </div>
-    </main>
 
-    <!-- Invisible Card Scan input for Keyboard emulation -->
-    <form id="scan-form">
-        <input type="text" id="card-input" autofocus autocomplete="off">
-    </form>
-
-    <div class="bottom-actions">
-        <a href="/admin" class="admin-link" target="_blank">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            管理画面を開く
-        </a>
-        <button class="manual-btn" onclick="openManualModal()" title="手動入力">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><line x1="6" y1="8" x2="6.01" y2="8"/><line x1="10" y1="8" x2="10.01" y2="8"/><line x1="14" y1="8" x2="14.01" y2="8"/><line x1="18" y1="8" x2="18.01" y2="8"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="18" y1="12" x2="18.01" y2="12"/><rect x="10" y="12" width="4" height="1"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/><line x1="14" y1="16" x2="14.01" y2="16"/><line x1="18" y1="16" x2="18.01" y2="16"/></svg>
-        </button>
+        <p class="text-center text-stone-300 text-xs mt-6">GateMan v2.0</p>
     </div>
 
-    <!-- API Response Overlay -->
-    <div class="overlay" id="result-overlay">
-        <div class="result-card" id="res-card">
-            <div class="result-icon-container" id="res-icon-bg">
-                <span id="res-icon">✓</span>
+    <div id="result-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+        <div id="result-card" class="animate-fade-in w-full max-w-sm rounded-2xl shadow-2xl border p-6 sm:p-8 text-center bg-white">
+            <div id="result-icon" class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-3xl"></div>
+            <div id="result-title" class="text-xl font-bold text-stone-700 mb-1"></div>
+            <div id="result-message" class="text-sm text-stone-500 mb-4"></div>
+            <div id="result-details" class="hidden bg-stone-50 rounded-xl p-4 text-left text-sm space-y-2 border border-stone-100">
+                <div class="flex justify-between"><span class="text-stone-400">学籍番号</span><span class="font-medium text-stone-600" id="res-sid">-</span></div>
+                <div class="flex justify-between"><span class="text-stone-400">区分</span><span class="font-medium text-stone-600" id="res-attr">-</span></div>
+                <div class="flex justify-between"><span class="text-stone-400">打刻時刻</span><span class="font-medium text-stone-600" id="res-time">-</span></div>
             </div>
-            <div class="result-title" id="res-status">打刻完了</div>
-            <div class="result-message" id="res-msg">山田 太郎さん、こんにちは！</div>
-            <div class="result-details" id="res-details-box">
-                <div class="result-row">
-                    <span class="result-label">学籍番号:</span>
-                    <span class="result-value" id="res-sid">-</span>
-                </div>
-                <div class="result-row">
-                    <span class="result-label">所属/属性:</span>
-                    <span class="result-value" id="res-attr">-</span>
-                </div>
-                <div class="result-row">
-                    <span class="result-label">打刻時刻:</span>
-                    <span class="result-value" id="res-time">-</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Manual Code Input Modal -->
-    <div class="manual-modal" id="manual-modal">
-        <div class="manual-card">
-            <button class="manual-close" onclick="closeManualModal()">閉じる</button>
-            <h3>手動カードID入力</h3>
-            <p style="font-size: 0.8rem; color: var(--text-muted);">磁気カードのID番号を直接入力して打刻します。</p>
-            <input type="text" class="manual-input" id="manual-card-id" placeholder="磁気IDを入力" maxlength="20">
-            <button class="manual-submit" onclick="submitManualScan()">打刻する</button>
         </div>
     </div>
 
     <script>
-        // State variables
-        let currentMode = 'enter'; // 'enter' or 'exit'
-        let audioCtx = null;
-        let isOverlayActive = false;
+        const input = document.getElementById('card-input');
+        const loading = document.getElementById('loading-indicator');
+        const hint = document.getElementById('hint-text');
+        const overlay = document.getElementById('result-overlay');
+        const resultCard = document.getElementById('result-card');
+        const resultIcon = document.getElementById('result-icon');
+        const resultTitle = document.getElementById('result-title');
+        const resultMsg = document.getElementById('result-message');
+        const resultDetails = document.getElementById('result-details');
+        const resSid = document.getElementById('res-sid');
+        const resAttr = document.getElementById('res-attr');
+        const resTime = document.getElementById('res-time');
 
-        // Initialize Audio context on first user click or action
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-        }
+        let isProcessing = false;
+        let dismissTimer = null;
 
-        // Web Audio Synthesizer: Play Beep Sound for success
-        function playSuccessBeep() {
-            try {
-                initAudio();
-                if (!audioCtx) return;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                
-                osc.type = 'sine';
-                // Two tone beep: 660Hz then 880Hz
-                osc.frequency.setValueAtTime(660, audioCtx.currentTime);
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.08);
-                
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
-                
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.25);
-            } catch (e) {
-                console.error("Audio error:", e);
-            }
-        }
-
-        // Web Audio Synthesizer: Play Buzz Sound for failures
-        function playErrorBuzz() {
-            try {
-                initAudio();
-                if (!audioCtx) return;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                
-                osc.type = 'sawtooth';
-                // Low pitched buzz
-                osc.frequency.setValueAtTime(140, audioCtx.currentTime);
-                osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 0.35);
-                
-                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-                
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                
-                osc.start();
-                osc.stop(audioCtx.currentTime + 0.4);
-            } catch (e) {
-                console.error("Audio error:", e);
-            }
-        }
-
-        // Digital Clock Logic
         function updateClock() {
-            const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            document.getElementById('clock-time').textContent = `${hours}:${minutes}:${seconds}`;
-
-            const years = now.getFullYear();
-            const months = now.getMonth() + 1;
-            const days = now.getDate();
-            const dayNames = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
-            const dayName = dayNames[now.getDay()];
-            document.getElementById('clock-date').textContent = `${years}年${months}月${days}日 ${dayName}`;
+            const n = new Date();
+            document.getElementById('clock').textContent =
+                String(n.getHours()).padStart(2,'0') + ':' +
+                String(n.getMinutes()).padStart(2,'0') + ':' +
+                String(n.getSeconds()).padStart(2,'0');
+            const days = ['日','月','火','水','木','金','土'];
+            document.getElementById('clock-date').textContent =
+                n.getFullYear() + '年' + (n.getMonth()+1) + '月' + n.getDate() + '日 ' + days[n.getDay()] + '曜日';
         }
         setInterval(updateClock, 1000);
         updateClock();
 
-        // Mode Switching
-        function setMode(mode) {
-            initAudio();
-            currentMode = mode;
-            if (mode === 'enter') {
-                document.body.className = 'mode-enter-active';
-                document.getElementById('prompt-message').textContent = 'カードをタッチしてください（入室）';
+        function enableInput() {
+            input.disabled = false;
+            loading.classList.add('hidden');
+            hint.textContent = 'カードをリーダーにかざすか、IDを入力してEnterキーを押してください';
+            input.focus();
+        }
+
+        function disableInput() {
+            input.disabled = true;
+            loading.classList.remove('hidden');
+            hint.textContent = '処理中...';
+        }
+
+        function showResult(data) {
+            const isOk = data.success;
+            const stay = data.stay_duration ? '（滞在時間: ' + data.stay_duration + '）' : '';
+            const msg = data.message || (isOk ? '打刻が完了しました。' : 'エラーが発生しました。');
+
+            if (isOk) {
+                resultCard.className = 'animate-fade-in w-full max-w-sm rounded-2xl shadow-2xl border p-6 sm:p-8 text-center bg-white border-emerald-200';
+                resultIcon.className = 'w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-3xl bg-emerald-100 text-emerald-600';
+                resultIcon.textContent = '✓';
+                resultTitle.textContent = data.status === '退室' ? '退室完了' : '入室完了';
+                resultTitle.className = 'text-xl font-bold text-emerald-700 mb-1';
+                if (data.student_id) {
+                    resultDetails.classList.remove('hidden');
+                    resSid.textContent = data.student_id;
+                    resAttr.textContent = data.attr_label || '-';
+                    resTime.textContent = data.timestamp || '-';
+                } else {
+                    resultDetails.classList.add('hidden');
+                }
             } else {
-                document.body.className = 'mode-exit-active';
-                document.getElementById('prompt-message').textContent = 'カードをタッチしてください（退室）';
+                resultCard.className = 'animate-fade-in w-full max-w-sm rounded-2xl shadow-2xl border p-6 sm:p-8 text-center bg-white border-red-200';
+                resultIcon.className = 'w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-3xl bg-red-100 text-red-600';
+                resultIcon.textContent = '✕';
+                resultTitle.textContent = 'エラー';
+                resultTitle.className = 'text-xl font-bold text-red-700 mb-1';
+                resultDetails.classList.add('hidden');
             }
-            focusInput();
+            resultMsg.textContent = msg;
+            overlay.classList.remove('hidden');
+            isProcessing = false;
+
+            if (dismissTimer) clearTimeout(dismissTimer);
+            dismissTimer = setTimeout(dismissResult, 5000);
         }
 
-        // Keep input field focused at all times
-        const cardInput = document.getElementById('card-input');
-        const focusStatus = document.getElementById('focus-status');
-        const focusText = document.getElementById('focus-text');
-
-        function focusInput() {
-            if (!isOverlayActive && document.getElementById('manual-modal').className.indexOf('active') === -1) {
-                cardInput.focus();
-            }
+        function dismissResult() {
+            resultCard.className = resultCard.className.replace('animate-fade-in', 'animate-fade-out');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                resultCard.className = resultCard.className.replace('animate-fade-out', 'animate-fade-in');
+                enableInput();
+            }, 300);
         }
 
-        cardInput.addEventListener('blur', () => {
-            focusStatus.className = 'focus-indicator unfocused';
-            focusText.textContent = 'タップして自動入力を再開';
-            setTimeout(focusInput, 150); // Small delay to prevent layout thrashing
-        });
-
-        cardInput.addEventListener('focus', () => {
-            focusStatus.className = 'focus-indicator';
-            focusText.textContent = '自動入力有効';
-        });
-
-        // Ensure clicking anywhere on the screen refocuses the input field
-        document.addEventListener('click', (e) => {
-            // Do not steal focus if interacting with buttons, modals or links
-            if (e.target.tagName !== 'BUTTON' && 
-                e.target.tagName !== 'A' && 
-                e.target.tagName !== 'INPUT' && 
-                !e.target.closest('.manual-card') &&
-                !e.target.closest('.result-card')) {
-                focusInput();
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                if (dismissTimer) clearTimeout(dismissTimer);
+                dismissResult();
             }
         });
 
-        // Handle Scan Submissions
-        const scanForm = document.getElementById('scan-form');
-        scanForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const cardID = cardInput.value.trim();
-            if (cardID) {
-                processScan(cardID);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (isProcessing) return;
+                const val = input.value.trim();
+                if (!val) return;
+                isProcessing = true;
+                disableInput();
+                processScan(val);
             }
-            cardInput.value = '';
         });
 
-        // Process Scan API Request
         function processScan(cardID) {
-            initAudio();
-            if (isOverlayActive) return; // Prevent double scanning while result is displayed
-
-            isOverlayActive = true;
-            
-            // Build Form Data
             const formData = new FormData();
             formData.append('card_id', cardID);
-            formData.append('mode', currentMode);
 
-            // Fetch to Backend
-            fetch('/api/scan', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                showResult(data);
-            })
-            .catch(error => {
-                console.error('Error scanning:', error);
-                showResult({
-                    success: false,
-                    message: "サーバー通信エラーが発生しました。"
+            input.value = '';
+
+            fetch('/api/scan', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    showResult(data);
+                })
+                .catch(err => {
+                    console.error('Scan error:', err);
+                    isProcessing = false;
+                    showResult({ success: false, message: 'サーバー通信エラーが発生しました。' });
                 });
-            });
         }
 
-        // Show Scan Result Modal
-        function showResult(data) {
-            const overlay = document.getElementById('result-overlay');
-            const card = document.getElementById('res-card');
-            const iconBg = document.getElementById('res-icon-bg');
-            const icon = document.getElementById('res-icon');
-            const status = document.getElementById('res-status');
-            const msg = document.getElementById('res-msg');
-            const sid = document.getElementById('res-sid');
-            const attr = document.getElementById('res-attr');
-            const time = document.getElementById('res-time');
-            const detailsBox = document.getElementById('res-details-box');
-
-            if (data.success) {
-                playSuccessBeep();
-                status.textContent = currentMode === 'enter' ? '入室完了' : '退室完了';
-                card.style.setProperty('--result-color', currentMode === 'enter' ? 'var(--primary-enter)' : 'var(--primary-enter)');
-                card.style.setProperty('--result-glow', currentMode === 'enter' ? 'var(--primary-enter-glow)' : 'var(--primary-enter-glow)');
-                iconBg.style.background = 'rgba(72, 153, 22, 0.15)';
-                iconBg.style.color = '#489916';
-                icon.textContent = '✓';
-                
-                // Show Student Details
-                sid.textContent = data.student_id || '-';
-                attr.textContent = `${data.attribute || '-'} (${data.department || '-'})`;
-                time.textContent = data.time || '-';
-                detailsBox.style.display = 'flex';
-                
-                msg.textContent = data.message;
-            } else {
-                playErrorBuzz();
-                status.textContent = 'エラー';
-                card.style.setProperty('--result-color', 'var(--primary-exit)');
-                card.style.setProperty('--result-glow', 'var(--primary-exit-glow)');
-                iconBg.style.background = 'rgba(210, 33, 45, 0.15)';
-                iconBg.style.color = '#d2212d';
-                icon.textContent = '✕';
-                
-                // Hide Student Details
-                detailsBox.style.display = 'none';
-                
-                msg.textContent = data.message || '利用登録が見つかりませんでした。';
-            }
-
-            overlay.classList.add('active');
-
-            // Automatically close overlay after 4 seconds
-            setTimeout(() => {
-                closeResultOverlay();
-            }, 4000);
-        }
-
-        function closeResultOverlay() {
-            const overlay = document.getElementById('result-overlay');
-            overlay.classList.remove('active');
-            isOverlayActive = false;
-            cardInput.value = '';
-            focusInput();
-        }
-
-        // Close overlay by clicking on it
-        document.getElementById('result-overlay').addEventListener('click', () => {
-            closeResultOverlay();
-        });
-
-        // Manual Input Trigger
-        function openManualModal() {
-            initAudio();
-            document.getElementById('manual-modal').classList.add('active');
-            document.getElementById('manual-card-id').focus();
-        }
-
-        function closeManualModal() {
-            document.getElementById('manual-modal').classList.remove('active');
-            document.getElementById('manual-card-id').value = '';
-            setTimeout(focusInput, 150);
-        }
-
-        function submitManualScan() {
-            const cardID = document.getElementById('manual-card-id').value.trim();
-            if (cardID) {
-                closeManualModal();
-                processScan(cardID);
-            }
-        }
-
-        // Submit manual scan on Enter key
-        document.getElementById('manual-card-id').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                submitManualScan();
-            }
-        });
-
-        // Initial Focus Setup
         window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(focusInput, 500);
+            setTimeout(() => {
+                input.disabled = false;
+                input.focus();
+            }, 300);
+        });
+
+        document.addEventListener('click', () => {
+            if (!input.disabled && overlay.classList.contains('hidden')) {
+                input.focus();
+            }
         });
     </script>
 </body>

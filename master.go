@@ -16,10 +16,9 @@ var (
 	userCacheMu sync.RWMutex
 )
 
-// ensureMasterFileExists creates a dummy master Excel file if it does not exist.
 func ensureMasterFileExists(path string) error {
 	if _, err := os.Stat(path); err == nil {
-		return nil // Already exists
+		return nil
 	}
 
 	dir := filepath.Dir(path)
@@ -39,8 +38,7 @@ func ensureMasterFileExists(path string) error {
 	}
 	f.SetActiveSheet(index)
 
-	// Set headers
-	headers := []string{"磁気ID", "学籍番号", "名前", "属性", "学部学科"}
+	headers := []string{"磁気ID", "学籍番号", "名前", "フリガナ", "区分コード", "学部学科"}
 	for colIdx, h := range headers {
 		cell, err := excelize.CoordinatesToCellName(colIdx+1, 1)
 		if err == nil {
@@ -48,12 +46,11 @@ func ensureMasterFileExists(path string) error {
 		}
 	}
 
-	// Add dummy seed data for demonstration
 	dummyRows := [][]string{
-		{"12345678", "S26001", "山田 太郎", "学生", "工学部情報工学科"},
-		{"87654321", "S26002", "佐藤 美咲", "学生", "理学部物理学科"},
-		{"11223344", "ST2601", "鈴木 一郎", "学生スタッフ", "工学部機械工学科"},
-		{"55667788", "T26001", "田中 健二", "教職員", "事務局"},
+		{"12345678", "S26001", "山田 太郎", "ヤマダ タロウ", "1", "工学部情報工学科"},
+		{"87654321", "S26002", "佐藤 美咲", "サトウ ミサキ", "1", "理学部物理学科"},
+		{"11223344", "ST2601", "鈴木 一郎", "スズキ イチロウ", "9", "工学部機械工学科"},
+		{"55667788", "T26001", "田中 健二", "タナカ ケンジ", "5", "事務局"},
 	}
 	for rowIdx, r := range dummyRows {
 		for colIdx, val := range r {
@@ -64,7 +61,6 @@ func ensureMasterFileExists(path string) error {
 		}
 	}
 
-	// Remove default sheet
 	_ = f.DeleteSheet("Sheet1")
 
 	if err := f.SaveAs(path); err != nil {
@@ -75,7 +71,6 @@ func ensureMasterFileExists(path string) error {
 	return nil
 }
 
-// readExcel reads Excel sheet for the current fiscal year and returns a map of Users.
 func readExcel(path string) (map[string]User, error) {
 	f, err := excelize.OpenFile(path)
 	if err != nil {
@@ -94,7 +89,6 @@ func readExcel(path string) (map[string]User, error) {
 		}
 	}
 
-	// Fallback to first sheet if the current fiscal year sheet doesn't exist yet
 	if !sheetExists {
 		if len(sheets) == 0 {
 			return nil, fmt.Errorf("no sheets found in Excel file")
@@ -113,14 +107,9 @@ func readExcel(path string) (map[string]User, error) {
 		return cache, nil
 	}
 
-	// Default column mappings
-	cardIdx := 0
-	studentIdx := 1
-	nameIdx := 2
-	attrIdx := 3
-	deptIdx := 4
+	cardIdx, studentIdx, nameIdx := 0, 1, 2
+	attrCodeIdx, deptIdx, furiganaIdx := 3, 4, -1
 
-	// Dynamically map column positions from header names
 	headers := rows[0]
 	for i, h := range headers {
 		h = strings.TrimSpace(h)
@@ -131,19 +120,20 @@ func readExcel(path string) (map[string]User, error) {
 			studentIdx = i
 		case "名前", "氏名", "Name":
 			nameIdx = i
-		case "属性", "区分", "役職", "Attribute", "Attr":
-			attrIdx = i
+		case "区分コード", "区分", "属性コード", "AttrCode", "attr_code":
+			attrCodeIdx = i
 		case "学部学科", "学部", "学科", "Department", "Dept":
 			deptIdx = i
+		case "フリガナ", "ふりがな", "Furigana":
+			furiganaIdx = i
 		}
 	}
 
-	// Load rows into cache map
 	for i := 1; i < len(rows); i++ {
 		row := rows[i]
 
 		getVal := func(idx int) string {
-			if idx < len(row) {
+			if idx >= 0 && idx < len(row) {
 				return strings.TrimSpace(row[idx])
 			}
 			return ""
@@ -158,15 +148,16 @@ func readExcel(path string) (map[string]User, error) {
 			CardID:     cardID,
 			StudentID:  getVal(studentIdx),
 			Name:       getVal(nameIdx),
-			Attribute:  getVal(attrIdx),
+			AttrCode:   getVal(attrCodeIdx),
+			Attribute:  attrCodeToLabel(getVal(attrCodeIdx)),
 			Department: getVal(deptIdx),
+			Furigana:   getVal(furiganaIdx),
 		}
 	}
 
 	return cache, nil
 }
 
-// loadMasterData handles copying the master file to cache directory and reloading memory cache.
 func loadMasterData() error {
 	master := getMasterPath()
 	local := getLocalCopyPath()
@@ -200,7 +191,6 @@ func loadMasterData() error {
 	return nil
 }
 
-// appendUserToExcel appends a new user to the master Excel file, copies it locally, and updates cache.
 func appendUserToExcel(user User) error {
 	master := getMasterPath()
 
@@ -230,8 +220,7 @@ func appendUserToExcel(user User) error {
 		if err != nil {
 			return fmt.Errorf("failed to create sheet: %w", err)
 		}
-		// Write headers for new sheet
-		headers := []string{"磁気ID", "学籍番号", "名前", "属性", "学部学科"}
+		headers := []string{"磁気ID", "学籍番号", "名前", "区分コード", "学部学科"}
 		for colIdx, h := range headers {
 			cell, _ := excelize.CoordinatesToCellName(colIdx+1, 1)
 			_ = f.SetCellValue(sheetName, cell, h)
@@ -244,12 +233,8 @@ func appendUserToExcel(user User) error {
 		return fmt.Errorf("failed to read rows: %w", err)
 	}
 
-	// Column indices mapped dynamically
-	cardIdx := 0
-	studentIdx := 1
-	nameIdx := 2
-	attrIdx := 3
-	deptIdx := 4
+	cardIdx, studentIdx, nameIdx := 0, 1, 2
+	attrCodeIdx, deptIdx := 3, 4
 
 	if len(rows) > 0 {
 		headers := rows[0]
@@ -262,15 +247,14 @@ func appendUserToExcel(user User) error {
 				studentIdx = i
 			case "名前", "氏名", "Name":
 				nameIdx = i
-			case "属性", "区分", "役職", "Attribute", "Attr":
-				attrIdx = i
+			case "区分コード", "区分", "属性コード", "AttrCode", "attr_code":
+				attrCodeIdx = i
 			case "学部学科", "学部", "学科", "Department", "Dept":
 				deptIdx = i
 			}
 		}
 	}
 
-	// Verify duplicate ID
 	for i := 1; i < len(rows); i++ {
 		row := rows[i]
 		if cardIdx < len(row) && strings.TrimSpace(row[cardIdx]) == user.CardID {
@@ -278,7 +262,6 @@ func appendUserToExcel(user User) error {
 		}
 	}
 
-	// Append row
 	newRowIdx := len(rows) + 1
 
 	setCellVal := func(colIdx int, val string) {
@@ -291,14 +274,13 @@ func appendUserToExcel(user User) error {
 	setCellVal(cardIdx, user.CardID)
 	setCellVal(studentIdx, user.StudentID)
 	setCellVal(nameIdx, user.Name)
-	setCellVal(attrIdx, user.Attribute)
+	setCellVal(attrCodeIdx, user.AttrCode)
 	setCellVal(deptIdx, user.Department)
 
 	if err := f.SaveAs(master); err != nil {
 		return fmt.Errorf("failed to save master Excel: %w", err)
 	}
 
-	// Reload master data to update cache and local copy
 	if err := loadMasterData(); err != nil {
 		return fmt.Errorf("failed to reload master data after registration: %w", err)
 	}
@@ -306,7 +288,13 @@ func appendUserToExcel(user User) error {
 	return nil
 }
 
-// findUserByStudentID is a helper that returns a User searching by student ID in the cache.
+func findUserByCardID(cardID string) (User, bool) {
+	userCacheMu.RLock()
+	defer userCacheMu.RUnlock()
+	u, ok := userCache[cardID]
+	return u, ok
+}
+
 func findUserByStudentID(studentID string) (User, bool) {
 	userCacheMu.RLock()
 	defer userCacheMu.RUnlock()

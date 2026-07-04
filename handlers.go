@@ -13,7 +13,6 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// handleIndex serves the scan interface page.
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -22,12 +21,6 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "templates/index.html")
 }
 
-// handleAdmin serves the admin dashboard page.
-func handleAdmin(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "templates/admin.html")
-}
-
-// handleScan processes card swipe requests.
 func handleScan(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -37,105 +30,250 @@ func handleScan(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	_ = r.ParseMultipartForm(32 << 20)
 
-	cardID := strings.TrimSpace(r.FormValue("card_id"))
-	mode := strings.TrimSpace(r.FormValue("mode")) // "enter" or "exit"
+	rawID := strings.TrimSpace(r.FormValue("card_id"))
+	cardID := cleanseID(rawID)
 
 	if cardID == "" {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":false,"message":"カードIDが指定されていません。"}`))
+		_, _ = w.Write([]byte(`{"success":false,"message":"カードIDが入力されていません。"}`))
 		return
 	}
 
-	userCacheMu.RLock()
-	user, found := userCache[cardID]
-	userCacheMu.RUnlock()
+	now := time.Now()
+	nowStr := now.Format(TimeLayout)
+
+	user, found := findUserByCardID(cardID)
 
 	if !found {
+		logEntry := AccessLog{
+			Timestamp:    nowStr,
+			CardID:       cardID,
+			Name:         "未登録",
+			Result:       "NG",
+			Status:       "-",
+			StayDuration: "-",
+		}
+		_ = insertLog(logEntry)
+
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"success":false,"message":"利用登録を済ませてください"}`))
+		resp := ScanResponse{
+			Success: false,
+			Message: "利用登録を済ませてください",
+			Name:    "未登録",
+			Status:  "-",
+		}
+		_ = json.NewEncoder(w).Encode(resp)
 		return
 	}
 
-	greeting := getGreeting()
-	nowStr := time.Now().Format(TimeLayout)
-	timeOnlyStr := time.Now().Format("15:04:05")
+	var lastStatus string
+	var lastEnterTime string
+	err := db.QueryRow(
+		"SELECT status, timestamp FROM access_logs WHERE card_id = ? AND result = 'OK' ORDER BY id DESC LIMIT 1",
+		user.CardID,
+	).Scan(&lastStatus, &lastEnterTime)
+
+	isEnter := true
+	var stayDuration string
+
+	if err == sql.ErrNoRows {
+		isEnter = true
+	} else if err != nil {
+		log.Printf("[Scan] DB query error for last status: %v", err)
+		isEnter = true
+	} else {
+		if lastStatus == "入室" {
+			isEnter = false
+			if t, parseErr := time.Parse(TimeLayout, lastEnterTime); parseErr == nil {
+				diff := now.Sub(t)
+				hours := int(diff.Hours())
+				minutes := int(diff.Minutes()) % 60
+				if hours > 0 {
+					stayDuration = fmt.Sprintf("%d時間%d分", hours, minutes)
+				} else {
+					stayDuration = fmt.Sprintf("%d分", minutes)
+				}
+			}
+		}
+	}
+
+	status := "入室"
+	if !isEnter {
+		status = "退室"
+	}
+
+	logEntry := AccessLog{
+		Timestamp:    nowStr,
+		CardID:       user.CardID,
+		StudentID:    user.StudentID,
+		Name:         user.Name,
+		Result:       "OK",
+		AttrCode:     user.AttrCode,
+		AttrLabel:    attrCodeToLabel(user.AttrCode),
+		Status:       status,
+		StayDuration: stayDuration,
+	}
+	_ = insertLog(logEntry)
+
+	message := fmt.Sprintf("%sさん、%sしました。", user.Name, status)
+	if !isEnter && stayDuration != "" {
+		message = fmt.Sprintf("%sさん、%sしました。（滞在時間: %s）", user.Name, status, stayDuration)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
-
-	if mode == "exit" {
-		// Find open entry (exit_at is NULL) for this student
-		var logID int64
-		err := db.QueryRow("SELECT id FROM entry_logs WHERE student_id = ? AND exit_at IS NULL ORDER BY id DESC LIMIT 1", user.StudentID).Scan(&logID)
-
-		if err == nil {
-			// Record found, update with exit timestamp
-			_, err = db.Exec("UPDATE entry_logs SET exit_at = ? WHERE id = ?", nowStr, logID)
-			if err != nil {
-				log.Printf("[DB] Error updating exit stamp: %v", err)
-				_, _ = w.Write([]byte(`{"success":false,"message":"データベースの更新に失敗しました。"}`))
-				return
-			}
-
-			resp := map[string]interface{}{
-				"success":    true,
-				"message":    fmt.Sprintf("%sさん、お疲れ様でした。\n%s", user.Name, user.Attribute),
-				"student_id": user.StudentID,
-				"name":       user.Name,
-				"attribute":  user.Attribute,
-				"department": user.Department,
-				"time":       timeOnlyStr,
-			}
-			_ = json.NewEncoder(w).Encode(resp)
-			log.Printf("[Scan] Exit stamp recorded for %s (%s)", user.Name, user.StudentID)
-		} else if err == sql.ErrNoRows {
-			// No open entry log found. Record as exit-only (enter_at = NULL)
-			_, err = db.Exec("INSERT INTO entry_logs (student_id, name, enter_at, exit_at) VALUES (?, ?, NULL, ?)", user.StudentID, user.Name, nowStr)
-			if err != nil {
-				log.Printf("[DB] Error inserting exit-only stamp: %v", err)
-				_, _ = w.Write([]byte(`{"success":false,"message":"データベースへの登録に失敗しました。"}`))
-				return
-			}
-
-			resp := map[string]interface{}{
-				"success":    true,
-				"message":    fmt.Sprintf("%sさん、お疲れ様でした。(※入室打刻なし)\n%s", user.Name, user.Attribute),
-				"student_id": user.StudentID,
-				"name":       user.Name,
-				"attribute":  user.Attribute,
-				"department": user.Department,
-				"time":       timeOnlyStr,
-			}
-			_ = json.NewEncoder(w).Encode(resp)
-			log.Printf("[Scan] Exit-only stamp recorded (no entry found) for %s (%s)", user.Name, user.StudentID)
-		} else {
-			log.Printf("[DB] Error querying active entry log: %v", err)
-			_, _ = w.Write([]byte(`{"success":false,"message":"データベースの検索エラーが発生しました。"}`))
-		}
-
-	} else {
-		// Mode is "enter"
-		_, err := db.Exec("INSERT INTO entry_logs (student_id, name, enter_at, exit_at) VALUES (?, ?, ?, NULL)", user.StudentID, user.Name, nowStr)
-		if err != nil {
-			log.Printf("[DB] Error writing enter stamp: %v", err)
-			_, _ = w.Write([]byte(`{"success":false,"message":"データベースへの書込に失敗しました。"}`))
-			return
-		}
-
-		resp := map[string]interface{}{
-			"success":    true,
-			"message":    fmt.Sprintf("%sさん、%s\n%s", user.Name, greeting, user.Attribute),
-			"student_id": user.StudentID,
-			"name":       user.Name,
-			"attribute":  user.Attribute,
-			"department": user.Department,
-			"time":       timeOnlyStr,
-		}
-		_ = json.NewEncoder(w).Encode(resp)
-		log.Printf("[Scan] Enter stamp recorded for %s (%s)", user.Name, user.StudentID)
+	resp := ScanResponse{
+		Success:      true,
+		Message:      message,
+		Name:         user.Name,
+		StudentID:    user.StudentID,
+		AttrLabel:    logEntry.AttrLabel,
+		Status:       status,
+		StayDuration: stayDuration,
+		Timestamp:    nowStr,
 	}
+	_ = json.NewEncoder(w).Encode(resp)
+	log.Printf("[Scan] %s | ID=%s | Name=%s | Result=%s | Status=%s | Duration=%s",
+		nowStr, user.CardID, user.Name, "OK", status, stayDuration)
 }
 
-// handleUsers lists or registers users.
+func handleLogs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := db.Query(
+		"SELECT id, timestamp, card_id, student_id, name, result, attr_code, attr_label, status, stay_duration FROM access_logs ORDER BY id DESC LIMIT 100",
+	)
+	if err != nil {
+		log.Printf("[Logs] Query failed: %v", err)
+		http.Error(w, "Database Query Error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	logs := make([]AccessLog, 0)
+	for rows.Next() {
+		var l AccessLog
+		if err := rows.Scan(&l.ID, &l.Timestamp, &l.CardID, &l.StudentID, &l.Name,
+			&l.Result, &l.AttrCode, &l.AttrLabel, &l.Status, &l.StayDuration); err != nil {
+			log.Printf("[Logs] Row scanning failed: %v", err)
+			continue
+		}
+		logs = append(logs, l)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(logs)
+}
+
+func insertLog(l AccessLog) error {
+	_, err := db.Exec(
+		`INSERT INTO access_logs (timestamp, card_id, student_id, name, result, attr_code, attr_label, status, stay_duration)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		l.Timestamp, l.CardID, l.StudentID, l.Name, l.Result,
+		l.AttrCode, l.AttrLabel, l.Status, l.StayDuration,
+	)
+	return err
+}
+
+func handleNightlyForcedExit(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	now := time.Now()
+	nowStr := now.Format(TimeLayout)
+
+	rows, err := db.Query(
+		`SELECT a.card_id, a.student_id, a.name, a.attr_code, a.timestamp
+		 FROM access_logs a
+		 INNER JOIN (
+			 SELECT card_id, MAX(id) as max_id
+			 FROM access_logs
+			 WHERE result = 'OK'
+			 GROUP BY card_id
+		 ) b ON a.id = b.max_id
+		 WHERE a.status = '入室'`,
+	)
+	if err != nil {
+		log.Printf("[ForceExit] Query failed: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"success":false,"message":"Database query error"}`))
+		return
+	}
+	defer rows.Close()
+
+	count := 0
+	for rows.Next() {
+		var cardID, studentID, name, attrCode, enterTime sql.NullString
+		if err := rows.Scan(&cardID, &studentID, &name, &attrCode, &enterTime); err != nil {
+			log.Printf("[ForceExit] Row scan error: %v", err)
+			continue
+		}
+
+		cID := ""
+		if cardID.Valid {
+			cID = cardID.String
+		}
+		sID := ""
+		if studentID.Valid {
+			sID = studentID.String
+		}
+		n := ""
+		if name.Valid {
+			n = name.String
+		}
+		aCode := ""
+		if attrCode.Valid {
+			aCode = attrCode.String
+		}
+		eTime := ""
+		if enterTime.Valid {
+			eTime = enterTime.String
+		}
+
+		var stayDuration string
+		if t, parseErr := time.Parse(TimeLayout, eTime); parseErr == nil {
+			diff := now.Sub(t)
+			hours := int(diff.Hours())
+			minutes := int(diff.Minutes()) % 60
+			if hours > 0 {
+				stayDuration = fmt.Sprintf("%d時間%d分", hours, minutes)
+			} else {
+				stayDuration = fmt.Sprintf("%d分", minutes)
+			}
+		}
+
+		logEntry := AccessLog{
+			Timestamp:    nowStr,
+			CardID:       cID,
+			StudentID:    sID,
+			Name:         n,
+			Result:       "NG (自動処理)",
+			AttrCode:     aCode,
+			AttrLabel:    attrCodeToLabel(aCode),
+			Status:       "強制退室",
+			StayDuration: stayDuration,
+		}
+		if err := insertLog(logEntry); err != nil {
+			log.Printf("[ForceExit] Insert error for %s: %v", cID, err)
+			continue
+		}
+		count++
+		log.Printf("[ForceExit] Forced exit: %s (%s)", n, sID)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	resp := map[string]interface{}{
+		"success": true,
+		"count":   count,
+		"message": fmt.Sprintf("%d 名を強制退室させました。", count),
+	}
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
 func handleUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -146,7 +284,6 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 			users = append(users, u)
 		}
 		userCacheMu.RUnlock()
-
 		_ = json.NewEncoder(w).Encode(users)
 		return
 	}
@@ -155,21 +292,32 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
 		_ = r.ParseMultipartForm(32 << 20)
 
+		furigana := strings.TrimSpace(r.FormValue("furigana"))
+		if furigana != "" {
+			furigana = strings.Map(func(r rune) rune {
+				if r >= 0x3041 && r <= 0x3096 {
+					return r + 0x60
+				}
+				return r
+			}, furigana)
+		}
+
 		newUser := User{
 			CardID:     strings.TrimSpace(r.FormValue("card_id")),
 			StudentID:  strings.TrimSpace(r.FormValue("student_id")),
 			Name:       strings.TrimSpace(r.FormValue("name")),
-			Attribute:  strings.TrimSpace(r.FormValue("attribute")),
+			AttrCode:   strings.TrimSpace(r.FormValue("attr_code")),
+			Attribute:  attrCodeToLabel(strings.TrimSpace(r.FormValue("attr_code"))),
 			Department: strings.TrimSpace(r.FormValue("department")),
+			Furigana:   furigana,
 		}
 
-		if newUser.CardID == "" || newUser.StudentID == "" || newUser.Name == "" || newUser.Attribute == "" {
-			_, _ = w.Write([]byte(`{"success":false,"message":"磁気ID、学籍番号、名前、属性は必須項目です。"}`))
+		if newUser.CardID == "" || newUser.StudentID == "" || newUser.Name == "" || newUser.AttrCode == "" {
+			_, _ = w.Write([]byte(`{"success":false,"message":"磁気ID、学籍番号、名前、区分コードは必須項目です。"}`))
 			return
 		}
 
 		if err := appendUserToExcel(newUser); err != nil {
-			log.Printf("[Registration] Error appending user: %v", err)
 			resp := map[string]interface{}{
 				"success": false,
 				"message": err.Error(),
@@ -186,7 +334,6 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 }
 
-// handleUsersReload re-downloads the NAS excel and repopulates the local cache.
 func handleUsersReload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -195,7 +342,6 @@ func handleUsersReload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := loadMasterData(); err != nil {
-		log.Printf("[Master] Reload API error: %v", err)
 		resp := map[string]interface{}{
 			"success": false,
 			"message": err.Error(),
@@ -215,64 +361,15 @@ func handleUsersReload(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-// handleLogs returns historical access records.
-func handleLogs(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Fetch last 50 logs
-	rows, err := db.Query("SELECT id, student_id, name, enter_at, exit_at FROM entry_logs ORDER BY id DESC LIMIT 50")
-	if err != nil {
-		log.Printf("[DB] Logs query failed: %v", err)
-		http.Error(w, "Database Query Error", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	logs := make([]LogEntry, 0)
-	for rows.Next() {
-		var l LogEntry
-		var enter, exit sql.NullString
-		if err := rows.Scan(&l.ID, &l.StudentID, &l.Name, &enter, &exit); err != nil {
-			log.Printf("[DB] Row scanning failed: %v", err)
-			continue
-		}
-		if enter.Valid {
-			l.EnterAt = &enter.String
-		}
-		if exit.Valid {
-			l.ExitAt = &exit.String
-		}
-		logs = append(logs, l)
-	}
-
-	// Statistics
-	todayStart := time.Now().Format("2006-01-02") + " 00:00:00"
-	var todayLogsCount int
-	_ = db.QueryRow("SELECT COUNT(*) FROM entry_logs WHERE enter_at >= ? OR exit_at >= ?", todayStart, todayStart).Scan(&todayLogsCount)
-
-	var activeUsersCount int
-	_ = db.QueryRow("SELECT COUNT(*) FROM entry_logs WHERE exit_at IS NULL").Scan(&activeUsersCount)
-
-	w.Header().Set("Content-Type", "application/json")
-	resp := map[string]interface{}{
-		"logs":             logs,
-		"todayLogsCount":   todayLogsCount,
-		"activeUsersCount": activeUsersCount,
-	}
-	_ = json.NewEncoder(w).Encode(resp)
-}
-
-// handleExport generates and exports Excel logs.
 func handleExport(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	rows, err := db.Query("SELECT id, student_id, name, enter_at, exit_at FROM entry_logs ORDER BY id DESC")
+	rows, err := db.Query(
+		"SELECT id, timestamp, card_id, student_id, name, result, attr_code, attr_label, status, stay_duration FROM access_logs ORDER BY id DESC",
+	)
 	if err != nil {
 		log.Printf("[Export] DB query error: %v", err)
 		http.Error(w, "Database read error", http.StatusInternalServerError)
@@ -292,14 +389,12 @@ func handleExport(w http.ResponseWriter, r *http.Request) {
 	}
 	f.SetActiveSheet(index)
 
-	// Set header row
-	headers := []string{"ログID", "学籍番号", "氏名", "属性", "学部学科 / 所属", "入室時刻", "退室時刻", "滞在時間"}
+	headers := []string{"ログID", "日時", "カードID", "学籍番号", "氏名", "判定結果", "区分コード", "区分", "ステータス", "滞在時間"}
 	for colIdx, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 1)
 		_ = f.SetCellValue(sheetName, cell, h)
 	}
 
-	// Header styling
 	headerStyle, err := f.NewStyle(&excelize.Style{
 		Font: &excelize.Font{Bold: true, Color: "FFFFFF", Size: 11},
 		Fill: excelize.Fill{Type: "pattern", Color: []string{"1F4E78"}, Pattern: 1},
@@ -310,81 +405,43 @@ func handleExport(w http.ResponseWriter, r *http.Request) {
 	})
 	if err == nil {
 		_ = f.SetRowHeight(sheetName, 1, 26)
-		_ = f.SetCellStyle(sheetName, "A1", "H1", headerStyle)
+		_ = f.SetCellStyle(sheetName, "A1", "J1", headerStyle)
 	}
 
 	rowNum := 2
 	for rows.Next() {
-		var id int64
-		var studentID, name string
-		var enter, exit sql.NullString
-		if err := rows.Scan(&id, &studentID, &name, &enter, &exit); err != nil {
+		var l AccessLog
+		if err := rows.Scan(&l.ID, &l.Timestamp, &l.CardID, &l.StudentID, &l.Name,
+			&l.Result, &l.AttrCode, &l.AttrLabel, &l.Status, &l.StayDuration); err != nil {
 			continue
 		}
 
-		// Lookup details from cache
-		attribute := "-"
-		department := "-"
-		user, ok := findUserByStudentID(studentID)
-		if ok {
-			attribute = user.Attribute
-			department = user.Department
-			if department == "" {
-				department = "-"
-			}
-		}
-
-		// Format timestamps
-		enterTimeStr := "-"
-		exitTimeStr := "-"
-		durationStr := "-"
-
-		if enter.Valid {
-			enterTimeStr = enter.String
-		}
-		if exit.Valid {
-			exitTimeStr = exit.String
-		}
-
-		// Calculate stay duration
-		if enter.Valid && exit.Valid {
-			t1, err1 := time.Parse(TimeLayout, enter.String)
-			t2, err2 := time.Parse(TimeLayout, exit.String)
-			if err1 == nil && err2 == nil {
-				diff := t2.Sub(t1)
-				hours := int(diff.Hours())
-				minutes := int(diff.Minutes()) % 60
-				if hours > 0 {
-					durationStr = fmt.Sprintf("%d時間%d分", hours, minutes)
-				} else {
-					durationStr = fmt.Sprintf("%d分", minutes)
-				}
-			}
-		}
-
-		_ = f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), id)
-		_ = f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), studentID)
-		_ = f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), name)
-		_ = f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), attribute)
-		_ = f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), department)
-		_ = f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowNum), enterTimeStr)
-		_ = f.SetCellValue(sheetName, fmt.Sprintf("G%d", rowNum), exitTimeStr)
-		_ = f.SetCellValue(sheetName, fmt.Sprintf("H%d", rowNum), durationStr)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("A%d", rowNum), l.ID)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("B%d", rowNum), l.Timestamp)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("C%d", rowNum), l.CardID)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("D%d", rowNum), l.StudentID)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("E%d", rowNum), l.Name)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("F%d", rowNum), l.Result)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("G%d", rowNum), l.AttrCode)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("H%d", rowNum), l.AttrLabel)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("I%d", rowNum), l.Status)
+		_ = f.SetCellValue(sheetName, fmt.Sprintf("J%d", rowNum), l.StayDuration)
 
 		rowNum++
 	}
 
-	// Delete default sheet
 	_ = f.DeleteSheet("Sheet1")
 
-	// Adjust columns widths
-	_ = f.SetColWidth(sheetName, "A", "A", 10)
-	_ = f.SetColWidth(sheetName, "B", "B", 15)
-	_ = f.SetColWidth(sheetName, "C", "C", 20)
-	_ = f.SetColWidth(sheetName, "D", "D", 15)
-	_ = f.SetColWidth(sheetName, "E", "E", 25)
-	_ = f.SetColWidth(sheetName, "F", "G", 22)
-	_ = f.SetColWidth(sheetName, "H", "H", 15)
+	_ = f.SetColWidth(sheetName, "A", "A", 8)
+	_ = f.SetColWidth(sheetName, "B", "B", 22)
+	_ = f.SetColWidth(sheetName, "C", "C", 15)
+	_ = f.SetColWidth(sheetName, "D", "D", 12)
+	_ = f.SetColWidth(sheetName, "E", "E", 20)
+	_ = f.SetColWidth(sheetName, "F", "F", 16)
+	_ = f.SetColWidth(sheetName, "G", "G", 10)
+	_ = f.SetColWidth(sheetName, "H", "H", 10)
+	_ = f.SetColWidth(sheetName, "I", "I", 12)
+	_ = f.SetColWidth(sheetName, "J", "J", 12)
 
 	var buf bytes.Buffer
 	if err := f.Write(&buf); err != nil {
@@ -394,7 +451,7 @@ func handleExport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	w.Header().Set("Content-Disposition", "attachment; filename=entry_log_export.xlsx")
+	w.Header().Set("Content-Disposition", "attachment; filename=access_log_export.xlsx")
 	_, _ = w.Write(buf.Bytes())
 	log.Printf("[Export] Log Excel sheet generated and exported successfully.")
 }

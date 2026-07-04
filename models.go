@@ -1,21 +1,37 @@
 package main
 
-// User represents a cached master user record.
 type User struct {
-	CardID     string `json:"CardID"`     // 磁気ID
-	StudentID  string `json:"StudentID"`  // 学籍番号
-	Name       string `json:"Name"`       // 名前
-	Attribute  string `json:"Attribute"`  // 属性 (学生/学生スタッフ/教職員)
-	Department string `json:"Department"` // 学部学科
+	CardID     string `json:"CardID"`
+	StudentID  string `json:"StudentID"`
+	Name       string `json:"Name"`
+	Attribute  string `json:"Attribute"`
+	Department string `json:"Department"`
+	AttrCode   string `json:"AttrCode"`
+	Furigana   string `json:"Furigana"`
 }
 
-// LogEntry represents a SQLite entry log.
-type LogEntry struct {
-	ID        int64   `json:"ID"`
-	StudentID string  `json:"StudentID"`
-	Name      string  `json:"Name"`
-	EnterAt   *string `json:"EnterAt"`
-	ExitAt    *string `json:"ExitAt"`
+type AccessLog struct {
+	ID           int64  `json:"id"`
+	Timestamp    string `json:"timestamp"`
+	CardID       string `json:"card_id"`
+	StudentID    string `json:"student_id"`
+	Name         string `json:"name"`
+	Result       string `json:"result"`
+	AttrCode     string `json:"attr_code"`
+	AttrLabel    string `json:"attr_label"`
+	Status       string `json:"status"`
+	StayDuration string `json:"stay_duration"`
+}
+
+type ScanResponse struct {
+	Success      bool   `json:"success"`
+	Message      string `json:"message"`
+	Name         string `json:"name"`
+	StudentID    string `json:"student_id"`
+	AttrLabel    string `json:"attr_label"`
+	Status       string `json:"status"`
+	StayDuration string `json:"stay_duration"`
+	Timestamp    string `json:"timestamp"`
 }
 
 const (
@@ -23,3 +39,17 @@ const (
 	LocalCopyPathDefault = "/tmp/local_master.xlsx"
 	TimeLayout           = "2006-01-02 15:04:05"
 )
+
+func attrCodeToLabel(code string) string {
+	if len(code) == 0 {
+		return "職員"
+	}
+	switch code[0] {
+	case '1':
+		return "学生"
+	case '9':
+		return "スタッフ"
+	default:
+		return "職員"
+	}
+}
