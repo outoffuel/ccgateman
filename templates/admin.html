@@ -94,6 +94,26 @@
                                 <label for="reg-department">学部学科 / 所属</label>
                                 <input type="text" id="reg-department" class="form-control" placeholder="例: 工学部情報工学科">
                             </div>
+                            <div class="form-group">
+                                <label for="reg-furigana">フリガナ</label>
+                                <input type="text" id="reg-furigana" class="form-control" placeholder="例: ヤマダ タロウ">
+                            </div>
+                            <div class="form-group">
+                                <label for="reg-gender">性別</label>
+                                <select id="reg-gender" class="form-control">
+                                    <option value="">--</option>
+                                    <option value="男">男</option>
+                                    <option value="女">女</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="reg-purpose">利用目的</label>
+                                <input type="text" id="reg-purpose" class="form-control" placeholder="例: 研究、授業、実験補助">
+                            </div>
+                            <div class="form-group">
+                                <label for="reg-phone">電話番号</label>
+                                <input type="tel" id="reg-phone" class="form-control" placeholder="例: 080-1234-5678">
+                            </div>
                             <button type="submit" class="btn btn-primary">
                                 登録する
                             </button>
@@ -159,13 +179,17 @@
                                         <th>磁気ID</th>
                                         <th>学籍番号</th>
                                         <th>氏名</th>
+                                        <th>フリガナ</th>
                                         <th>属性</th>
                                         <th>学部学科 / 所属</th>
+                                        <th>性別</th>
+                                        <th>利用目的</th>
+                                        <th>電話番号</th>
                                     </tr>
                                 </thead>
                                 <tbody id="users-list-body">
                                     <tr>
-                                        <td colspan="5" style="text-align: center; color: var(--text-muted);">読み込み中...</td>
+                                        <td colspan="9" style="text-align: center; color: var(--text-muted);">読み込み中...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -256,19 +280,39 @@
         function renderUsersTable(users) {
             const tbody = document.getElementById('users-list-body');
             if (users.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">登録ユーザーはいません</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">登録ユーザーはいません</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = users.map(user => `
+            tbody.innerHTML = users.map((user, idx) => `
                 <tr>
                     <td><code>${escapeHtml(user.CardID)}</code></td>
                     <td>${escapeHtml(user.StudentID)}</td>
                     <td style="font-weight: 600;">${escapeHtml(user.Name)}</td>
+                    <td>${escapeHtml(user.Furigana || '-')}</td>
                     <td><span class="badge badge-role">${escapeHtml(user.Attribute)}</span></td>
                     <td>${escapeHtml(user.Department || '-')}</td>
+                    <td>${escapeHtml(user.Gender || '-')}</td>
+                    <td>${escapeHtml(user.Purpose || '-')}</td>
+                    <td><span class="phone-reveal" onclick="togglePhone(this, ${idx})" data-phone="${escapeHtml(user.Phone || '')}">表示</span></td>
                 </tr>
             `).join('');
+        }
+
+        function togglePhone(el, idx) {
+            const phone = el.getAttribute('data-phone');
+            if (!phone) {
+                el.textContent = '-';
+                return;
+            }
+            if (el.classList.contains('revealed')) {
+                el.textContent = '表示';
+                el.classList.remove('revealed');
+            } else {
+                el.textContent = phone;
+                el.classList.add('revealed');
+                el.style.cursor = 'pointer';
+            }
         }
 
         // Filter Users Table
@@ -284,7 +328,10 @@
                 u.StudentID.toLowerCase().includes(query) ||
                 u.Name.toLowerCase().includes(query) ||
                 u.Attribute.toLowerCase().includes(query) ||
-                (u.Department && u.Department.toLowerCase().includes(query))
+                (u.Department && u.Department.toLowerCase().includes(query)) ||
+                (u.Furigana && u.Furigana.toLowerCase().includes(query)) ||
+                (u.Gender && u.Gender.toLowerCase().includes(query)) ||
+                (u.Purpose && u.Purpose.toLowerCase().includes(query))
             );
             renderUsersTable(filtered);
         }
@@ -358,6 +405,10 @@
             const name = document.getElementById('reg-name').value.trim();
             const attrCode = document.getElementById('reg-attr-code').value;
             const department = document.getElementById('reg-department').value.trim();
+            const furigana = document.getElementById('reg-furigana').value.trim();
+            const gender = document.getElementById('reg-gender').value;
+            const purpose = document.getElementById('reg-purpose').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
 
             const formData = new FormData();
             formData.append('card_id', cardID);
@@ -365,6 +416,10 @@
             formData.append('name', name);
             formData.append('attr_code', attrCode);
             formData.append('department', department);
+            formData.append('furigana', furigana);
+            formData.append('gender', gender);
+            formData.append('purpose', purpose);
+            formData.append('phone', phone);
 
             fetch('/api/users', {
                 method: 'POST',

@@ -439,3 +439,23 @@ select.form-control option {
 .search-bar .form-control {
 	padding-left: 2.8rem;
 }
+
+.phone-reveal {
+	cursor: pointer;
+	color: var(--primary);
+	font-size: 0.8rem;
+	font-weight: 600;
+	text-decoration: underline dotted;
+	text-underline-offset: 2px;
+}
+
+.phone-reveal:hover {
+	color: #0082ff;
+}
+
+.phone-reveal.revealed {
+	color: var(--text-main);
+	text-decoration: none;
+	font-size: 0.85rem;
+	font-weight: 400;
+}

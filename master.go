@@ -38,7 +38,7 @@ func ensureMasterFileExists(path string) error {
 	}
 	f.SetActiveSheet(index)
 
-	headers := []string{"磁気ID", "学籍番号", "名前", "フリガナ", "区分コード", "学部学科"}
+	headers := []string{"磁気ID", "学籍番号", "名前", "フリガナ", "区分コード", "学部学科", "性別", "利用目的", "電話番号"}
 	for colIdx, h := range headers {
 		cell, err := excelize.CoordinatesToCellName(colIdx+1, 1)
 		if err == nil {
@@ -47,10 +47,10 @@ func ensureMasterFileExists(path string) error {
 	}
 
 	dummyRows := [][]string{
-		{"12345678", "S26001", "山田 太郎", "ヤマダ タロウ", "1", "工学部情報工学科"},
-		{"87654321", "S26002", "佐藤 美咲", "サトウ ミサキ", "1", "理学部物理学科"},
-		{"11223344", "ST2601", "鈴木 一郎", "スズキ イチロウ", "9", "工学部機械工学科"},
-		{"55667788", "T26001", "田中 健二", "タナカ ケンジ", "5", "事務局"},
+		{"12345678", "S26001", "山田 太郎", "ヤマダ タロウ", "1", "工学部情報工学科", "男", "研究", "080-1234-5678"},
+		{"87654321", "S26002", "佐藤 美咲", "サトウ ミサキ", "1", "理学部物理学科", "女", "授業", "090-9876-5432"},
+		{"11223344", "ST2601", "鈴木 一郎", "スズキ イチロウ", "9", "工学部機械工学科", "男", "実験補助", "080-1111-2222"},
+		{"55667788", "T26001", "田中 健二", "タナカ ケンジ", "5", "事務局", "男", "業務", "070-3333-4444"},
 	}
 	for rowIdx, r := range dummyRows {
 		for colIdx, val := range r {
@@ -109,6 +109,7 @@ func readExcel(path string) (map[string]User, error) {
 
 	cardIdx, studentIdx, nameIdx := 0, 1, 2
 	attrCodeIdx, deptIdx, furiganaIdx := 3, 4, -1
+	genderIdx, purposeIdx, phoneIdx := -1, -1, -1
 
 	headers := rows[0]
 	for i, h := range headers {
@@ -126,6 +127,12 @@ func readExcel(path string) (map[string]User, error) {
 			deptIdx = i
 		case "フリガナ", "ふりがな", "Furigana":
 			furiganaIdx = i
+		case "性別", "Gender", "Sex":
+			genderIdx = i
+		case "利用目的", "目的", "Purpose":
+			purposeIdx = i
+		case "電話番号", "電話", "Phone", "Tel", "TEL":
+			phoneIdx = i
 		}
 	}
 
@@ -152,6 +159,9 @@ func readExcel(path string) (map[string]User, error) {
 			Attribute:  attrCodeToLabel(getVal(attrCodeIdx)),
 			Department: getVal(deptIdx),
 			Furigana:   getVal(furiganaIdx),
+			Gender:     getVal(genderIdx),
+			Purpose:    getVal(purposeIdx),
+			Phone:      getVal(phoneIdx),
 		}
 	}
 
@@ -220,7 +230,7 @@ func appendUserToExcel(user User) error {
 		if err != nil {
 			return fmt.Errorf("failed to create sheet: %w", err)
 		}
-		headers := []string{"磁気ID", "学籍番号", "名前", "区分コード", "学部学科"}
+		headers := []string{"磁気ID", "学籍番号", "名前", "フリガナ", "区分コード", "学部学科", "性別", "利用目的", "電話番号"}
 		for colIdx, h := range headers {
 			cell, _ := excelize.CoordinatesToCellName(colIdx+1, 1)
 			_ = f.SetCellValue(sheetName, cell, h)
@@ -234,7 +244,8 @@ func appendUserToExcel(user User) error {
 	}
 
 	cardIdx, studentIdx, nameIdx := 0, 1, 2
-	attrCodeIdx, deptIdx := 3, 4
+	attrCodeIdx, deptIdx, furiganaIdx := 3, 4, -1
+	genderIdx, purposeIdx, phoneIdx := -1, -1, -1
 
 	if len(rows) > 0 {
 		headers := rows[0]
@@ -251,6 +262,14 @@ func appendUserToExcel(user User) error {
 				attrCodeIdx = i
 			case "学部学科", "学部", "学科", "Department", "Dept":
 				deptIdx = i
+			case "フリガナ", "ふりがな", "Furigana":
+				furiganaIdx = i
+			case "性別", "Gender", "Sex":
+				genderIdx = i
+			case "利用目的", "目的", "Purpose":
+				purposeIdx = i
+			case "電話番号", "電話", "Phone", "Tel", "TEL":
+				phoneIdx = i
 			}
 		}
 	}
@@ -274,8 +293,12 @@ func appendUserToExcel(user User) error {
 	setCellVal(cardIdx, user.CardID)
 	setCellVal(studentIdx, user.StudentID)
 	setCellVal(nameIdx, user.Name)
+	setCellVal(furiganaIdx, user.Furigana)
 	setCellVal(attrCodeIdx, user.AttrCode)
 	setCellVal(deptIdx, user.Department)
+	setCellVal(genderIdx, user.Gender)
+	setCellVal(purposeIdx, user.Purpose)
+	setCellVal(phoneIdx, user.Phone)
 
 	if err := f.SaveAs(master); err != nil {
 		return fmt.Errorf("failed to save master Excel: %w", err)
@@ -402,7 +425,7 @@ func createNextYearSheet() (string, error) {
 		return "", fmt.Errorf("failed to create sheet '%s': %w", nextSheetName, err)
 	}
 
-	headers := []string{"磁気ID", "学籍番号", "名前", "フリガナ", "区分コード", "学部学科"}
+	headers := []string{"磁気ID", "学籍番号", "名前", "フリガナ", "区分コード", "学部学科", "性別", "利用目的", "電話番号"}
 	for colIdx, h := range headers {
 		cell, _ := excelize.CoordinatesToCellName(colIdx+1, 1)
 		_ = f.SetCellValue(nextSheetName, cell, h)

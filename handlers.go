@@ -360,6 +360,9 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 			Attribute:  attrCodeToLabel(strings.TrimSpace(r.FormValue("attr_code"))),
 			Department: strings.TrimSpace(r.FormValue("department")),
 			Furigana:   furigana,
+			Gender:     strings.TrimSpace(r.FormValue("gender")),
+			Purpose:    strings.TrimSpace(r.FormValue("purpose")),
+			Phone:      strings.TrimSpace(r.FormValue("phone")),
 		}
 
 		if newUser.CardID == "" || newUser.StudentID == "" || newUser.Name == "" || newUser.AttrCode == "" {

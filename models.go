@@ -8,6 +8,9 @@ type User struct {
 	Department string `json:"Department"`
 	AttrCode   string `json:"AttrCode"`
 	Furigana   string `json:"Furigana"`
+	Gender     string `json:"Gender"`
+	Purpose    string `json:"Purpose"`
+	Phone      string `json:"Phone"`
 }
 
 type AccessLog struct {
